@@ -1,0 +1,16 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: vault
+spec:
+  metadata:
+    - name: vaultAddr
+      value: http://vault.default.svc.cluster.local:8200
+    - name: skipVerify
+      value: true
+    - name: vaultToken
+      value: hvs.fake.token # Initial Root Token in Vault
+    - name: vaultKVUsePrefix
+      value: "false"
+  type: secretstores.hashicorp.vault
+  version: v1

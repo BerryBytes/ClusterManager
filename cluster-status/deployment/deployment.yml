@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: status-controller
+  namespace: status-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: status-controller
+  template:
+    metadata:
+      labels:
+        app: status-controller
+    spec:
+      containers:
+        - name: status-controller
+          image: 01community/clustermanager-statuscontroller:0.0.1-betav1
+          imagePullPolicy: Always
+          env:
+            - name: API_URL
+              value: "http://localhost:8081"

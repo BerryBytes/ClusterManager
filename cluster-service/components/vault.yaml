@@ -1,0 +1,16 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: vault
+spec:
+  metadata:
+    - name: vaultAddr
+      value: https://vaultexample.hashi.com
+    - name: skipVerify
+      value: true
+    - name: vaultToken
+      value: hvs.fake.token
+    - name: vaultKVUsePrefix
+      value: "false"
+  type: secretstores.hashicorp.vault
+  version: v1

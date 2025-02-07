@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster-api-python
+  labels:
+    app.kubernetes.io/instance: cluster-api
+    app.kubernetes.io/name: python
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: cluster-api
+      app.kubernetes.io/name: python
+  template:
+    metadata:
+      annotations:
+        dapr.io/app-id: publisher-dapr
+        dapr.io/app-port: "8081"
+        dapr.io/disable-builtin-k8s-secret-store: "true"
+        dapr.io/enabled: "true"
+      labels:
+        app.kubernetes.io/instance: cluster-api
+        app.kubernetes.io/name: python
+        app: publisher-dapr
+        dapr.io/app-id: publisher-dapr
+        dapr.io/disable-builtin-k8s-secret-store: "true"
+        dapr.io/metrics-enabled: "true"
+        dapr.io/sidecar-injected: "true"
+    spec:
+      containers:
+        - name: python
+          image: 01community/clustermanager-api:0.0.1-betav1
+          imagePullPolicy: Always
+          env:
+            - name: ADMIN_CLIENT_ID
+              value: admin-cli
+            - name: ADMIN_CLIENT_SECRET
+              value: secrete_asdjaasdsadasasadad
+            - name: ATLAS_URI
+              value: mongodb+srv://user:pass@cluster0.yrpzu.mongodb.net
+            - name: DB_NAME
+              value: cloud
+            - name: KEYCLOAK_URL
+              value: http://keycloak.default.svc.cluster.local
+            - name: REALM_NAME
+              value: clusterManager
+            - name: REQUEST_GROUP_NAME
+              value: request-user
+            - name: SERVICE_URL
+              value: http://cluster-service-python.default.svc.cluster.local:8200
+          ports:
+            - containerPort: 8081
+              name: http
+              protocol: TCP

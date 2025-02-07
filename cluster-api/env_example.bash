@@ -1,0 +1,9 @@
+export ATLAS_URI=mongo://user:user@cluster0.yrpzu.mongodb.net:27017/cloud
+export DB_NAME=cloud
+export SERVICE_URL=https://service_example.com/
+export ADMIN_CLIENT_SECRET=fake_VCp2T30KyBLi9FE8JoTPUWnRY9MRp3uN
+export KEYCLOAK_URL=https://sso.example_keycloak.dev/
+export REALM_NAME=clusterManager
+export ADMIN_CLIENT_ID=admin-cli
+export REQUEST_GROUP_NAME=request-user
+export CLIENT_ID=clustermanagerclient

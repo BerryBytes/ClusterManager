@@ -1,0 +1,1 @@
+export HOST_NAME=cluster_host_kubernetes.com

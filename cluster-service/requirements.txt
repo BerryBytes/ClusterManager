@@ -1,0 +1,6 @@
+Flask==3.0.3
+kubernetes==27.2.0
+dapr==1.14.0
+cloudevents==1.11.0
+typing-extensions==4.12.2
+gunicorn==20.1.0

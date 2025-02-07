@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster-ui-node
+  labels:
+    app: node
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node
+  template:
+    metadata:
+      labels:
+        app: node
+    spec:
+      containers:
+        - name: node
+          image: 01community/clustermanager-ui:0.0.1-betav1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4173
+              name: http
+              protocol: TCP
+      restartPolicy: Always

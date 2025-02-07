@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster-service-python
+  labels:
+    dapr.io/app-id: subscriber-dapr
+    dapr.io/metrics-enabled: "true"
+    dapr.io/sidecar-injected: "true"
+  annotations:
+    dapr.io/app-id: subscriber-dapr
+    dapr.io/app-port: "8082"
+    dapr.io/disable-builtin-k8s-secret-store: "true"
+    dapr.io/enabled: "true"
+    dapr.io/log-level: debug
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: python
+      app.kubernetes.io/provider: zerone
+  template:
+    metadata:
+      labels:
+        app: subscriber-dapr
+        app.kubernetes.io/name: python
+        app.kubernetes.io/provider: zerone
+      annotations:
+        dapr.io/app-id: subscriber-dapr
+        dapr.io/app-port: "8082"
+        dapr.io/disable-builtin-k8s-secret-store: "true"
+        dapr.io/enabled: "true"
+        dapr.io/log-level: debug
+    spec:
+      containers:
+        - name: python
+          image: 01community/clustermanager-service:0.0.1-betav1
+          imagePullPolicy: Always
+          env:
+            - name: HOST_NAME
+              value: clustermanager.com
+            - name: DAPR_HTTP_PORT
+              value: "3500"
+            - name: DAPR_GRPC_PORT
+              value: "50001"
+          ports:
+            - containerPort: 8082
+              name: http
+              protocol: TCP
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always

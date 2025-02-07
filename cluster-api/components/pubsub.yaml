@@ -1,0 +1,20 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: messagebus
+spec:
+  type: pubsub.aws
+  version: v1
+  metadata:
+    - name: host
+      value: amqps://user:pass@rabbitmq-0.rabbitmq-headless.cloudamqp.svc.local/ioraopuk
+    - name: port
+      value: 5672
+    - name: username
+      value: ioraopuk
+    - name: password
+      value: pass
+    - name: durable
+      value: "true"
+    - name: autoDelete
+      value: "true"
