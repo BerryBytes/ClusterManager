@@ -1,0 +1,45 @@
+name: GitLeaks Scan
+
+on:
+  push:
+    branches:
+      - '**'  # Run on all branches
+  pull_request:  # Keep PR checks for good measure
+  workflow_dispatch:
+
+jobs:
+  gitleaks:
+    name: GitLeaks Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write  # Required for uploading SARIF results
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for full history scan
+
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          config-path: .gitleaks.toml  # Optional: Custom config file
+          enable-upload-artifact: true
+          report-format: sarif
+          report-path: gitleaks-report.sarif
+
+      - name: Upload SARIF report
+        if: always()  # Upload even if GitLeaks finds issues
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gitleaks-report.sarif
+          category: gitleaks
+
+      - name: Handle GitLeaks findings
+        if: failure()
+        run: |
+          echo "::warning ::GitLeaks has detected potential secrets in your codebase."
+          echo "Please review the SARIF report in the Security tab."
