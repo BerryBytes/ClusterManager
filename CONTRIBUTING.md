@@ -11,17 +11,17 @@ Explore these resources to make your contribution effective and aligned with the
 ### 📥 **Submitting Pull Requests**
 
 Follow the step-by-step guide to submit pull requests:  
-[**Submitting Pull Requests Guide**](https://doc.example.com/ClusterManager/contributing/submitting-pull-requests/)
+[**Submitting Pull Requests Guide**](docs/content/contributing/submitting-pull-requests.md)
 
 ### 🐛 **Submitting Issues**
 
 Learn how to report bugs, propose features, or provide feedback:  
-[**Submitting Issues Guide**](https://doc.example.com/ClusterManager/contributing/submitting-issues/)
+[**Submitting Issues Guide**](docs/content/contributing/submitting-issues.md)
 
 ### 🔒 **Submitting Security Issues**
 
 Help us keep ClusterManager secure by reporting vulnerabilities responsibly:  
-[**Submitting Security Issues Guide**](https://doc.example.com/ClusterManager/contributing/submitting-security-issues/)
+[**Submitting Security Issues Guide**](docs/content/contributing/submitting-security-issues.md)
 
 ### 📣 **Advocating for ClusterManager**
 
