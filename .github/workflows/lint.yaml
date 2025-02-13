@@ -43,8 +43,10 @@ jobs:
       with:
         node-version: '20'
         cache: 'npm'
+        cache-dependency-path: cluster-ui/package-lock.json
 
     - name: Install Node.js dependencies
+      working-directory: cluster-ui
       run: |
         npm install -g eslint typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
         npm install -g prettier prettier-plugin-smarty prettier-plugin-mustache
