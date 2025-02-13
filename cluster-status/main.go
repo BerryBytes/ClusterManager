@@ -23,12 +23,17 @@ import (
 	"k8s.io/klog"
 )
 
+// Controller manages the processing of pods in the Kubernetes cluster.
+// It uses an indexer for caching, a workqueue for processing items,
+// and an informer for receiving cluster events.
 type Controller struct {
 	indexer  cache.Indexer
 	queue    workqueue.RateLimitingInterface
 	informer cache.Controller
 }
 
+// NewController creates a new Controller instance with the provided queue,
+// indexer and informer for managing pod events in the cluster.
 func NewController(queue workqueue.RateLimitingInterface, indexer cache.Indexer, informer cache.Controller) *Controller {
 	return &Controller{
 		informer: informer,
@@ -70,10 +75,6 @@ func (c *Controller) syncToStdout(key string) error {
 		fmt.Printf("Pod %s does not exist anymore\n", key)
 	} else {
 		pod := obj.(*v1.Pod)
-		// Note that you also have to check the uid if you have a local controlled resource, which
-		// is dependent on the actual instance, to detect that a Pod was recreated with the same name
-		// fmt.Printf("Sync/Add/Update for Pod %s  Status %v \n ", pod.GetName(), pod.Status.Phase)
-		// fmt.Printf("Sync/Add/Update for Pod %s Status %v Label {\"status-controller-vcluster\": \"cluster-manager\"}\n", pod.GetName(), pod.Status.Phase)
 		if pod.Labels["status-controller-vcluster"] == "cluster-manager" {
 			for key, value := range pod.ObjectMeta.Labels {
 				if key == "status-controller" {
@@ -85,12 +86,8 @@ func (c *Controller) syncToStdout(key string) error {
 						if containerState.Waiting != nil {
 							waitingReason := containerState.Waiting.Reason
 							switch waitingReason {
-							case "ImagePullBackOff":
-							case "OOMKilled":
-							case "ContainerConfigError":
-							case "CrashLoopBackOff":
+							case "ImagePullBackOff", "OOMKilled", "ContainerConfigError", "CrashLoopBackOff":
 								statusString = waitingReason
-								break
 							default:
 								statusString = "Pending"
 							}
@@ -107,12 +104,10 @@ func (c *Controller) syncToStdout(key string) error {
 				}
 			}
 		}
-
 	}
 	return nil
 }
 
-// handleErr checks if an error happened and makes sure we will retry later.
 func (c *Controller) handleErr(err error, key interface{}) {
 	if err == nil {
 		// Forget about the #AddRateLimited history of the key on every successful synchronization.
@@ -138,6 +133,8 @@ func (c *Controller) handleErr(err error, key interface{}) {
 	klog.Infof("Dropping pod %q out of the queue: %v", key, err)
 }
 
+// Run starts the controller with the specified number of workers and runs until stopped.
+// It manages the worker routines and ensures proper shutdown.
 func (c *Controller) Run(threadiness int, stopCh chan struct{}) {
 	defer runtime.HandleCrash()
 
@@ -271,7 +268,7 @@ func patchClusterStatus(name, id, status string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Request failed with status code: %d", resp.StatusCode)
+		return fmt.Errorf("request failed with status code: %d", resp.StatusCode)
 	}
 	logrus.Info("Request successful")
 	return nil
