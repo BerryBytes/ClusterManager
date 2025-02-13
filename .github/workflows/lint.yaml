@@ -25,11 +25,12 @@ jobs:
     
     - name: Run Go Lint
       run: |
+        cd cluster-status
         go install golang.org/x/lint/golint@latest
         go install honnef.co/go/tools/cmd/staticcheck@latest
-        golint ./cluster-status/...
-        go vet ./cluster-status/...
-        staticcheck ./cluster-status/...
+        golint .
+        go vet .
+        staticcheck .
 
     # Node.js Setup (for TypeScript, JavaScript, and template linting)
     - name: Set up Node.js
