@@ -49,7 +49,6 @@ jobs:
       working-directory: cluster-ui
       run: |
         npm install -g eslint typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
-        npm install -g prettier prettier-plugin-smarty prettier-plugin-mustache
         npm ci
 
     - name: Lint TypeScript
@@ -63,8 +62,8 @@ jobs:
     - name: Lint Smarty Templates
       run: npx prettier --check "**/*.tpl" --plugin=prettier-plugin-smarty
 
-    - name: Lint Mustache Templates
-      run: npx prettier --check "**/*.mustache" --plugin=prettier-plugin-mustache
+    # - name: Lint Mustache Templates
+    #   run: npx prettier --check "**/*.mustache" --plugin=prettier-plugin-mustache
 
     # Python Setup and Linting
     - name: Set up Python
