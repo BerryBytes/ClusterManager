@@ -23,19 +23,42 @@ jobs:
         go-version: '1.22'
         cache: true
 
-    - name: Install Go Linting Tools
+    - name: Install Go tools
       run: |
-        go install golang.org/x/lint/golint@latest
+        go install golang.org/x/tools/cmd/goimports@latest
         go install honnef.co/go/tools/cmd/staticcheck@latest
-        echo "$HOME/go/bin" >> $GITHUB_PATH  # Ensure installed tools are available in PATH
+        go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+        echo "$HOME/go/bin" >> $GITHUB_PATH
 
-    - name: Run Go Lint
+    - name: Go Format Check
+      working-directory: cluster-status
       run: |
-        cd cluster-status
-        golint ./...
-        go vet ./...
-        staticcheck ./...
-      if: success()  # Only run if previous steps succeeded
+        # Check if any .go files need formatting
+        if [ -n "$(gofmt -l .)" ]; then
+          echo "The following files need formatting:"
+          gofmt -l .
+          echo "Please run 'gofmt -w .' to format your code."
+          exit 1
+        fi
+
+    - name: Go Imports Check
+      working-directory: cluster-status
+      run: |
+        # Check if imports need organizing
+        if [ -n "$(goimports -l .)" ]; then
+          echo "The following files have incorrect imports:"
+          goimports -l .
+          echo "Please run 'goimports -w .' to fix imports."
+          exit 1
+        fi
+
+    - name: Run golangci-lint
+      working-directory: cluster-status
+      run: golangci-lint run --timeout=5m
+
+    - name: Run staticcheck
+      working-directory: cluster-status
+      run: staticcheck ./...
 
     # Node.js Setup (for TypeScript, JavaScript, and template linting)
     - name: Set up Node.js
@@ -61,10 +84,6 @@ jobs:
       working-directory: cluster-ui
       run: npx eslint "**/*.{js,jsx}" --fix
 
-    # - name: Lint Smarty Templates
-    #   working-directory: cluster-ui
-    #   run: npx prettier --check "**/*.tpl" --plugin=prettier-plugin-smarty
-
     # Python Setup and Linting
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -82,15 +101,3 @@ jobs:
       working-directory: cluster-service
       run: |
         pylint **/*.py || true
-
-    # Report results (optional)
-    # - name: Upload lint results
-    #   if: always()
-    #   uses: actions/upload-artifact@v4
-    #   with:
-    #     name: lint-results
-    #     path: |
-    #       **/lint-results.*
-    #       **/pylint-report.txt
-    #       **/eslint-report.json
-    #     retention-days: 14
