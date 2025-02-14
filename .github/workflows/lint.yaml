@@ -1,17 +1,17 @@
 name: Multi-language Lint
 
 on:
-    push:
-      branches:
-        - '**'  # Run on all branches
-    pull_request:  # Keep PR checks for good measure
-    workflow_dispatch:
+  push:
+    branches:
+      - '**'  # Run on all branches
+  pull_request:  # Keep PR checks for good measure
+  workflow_dispatch:
 
 jobs:
   lint:
     name: Lint All Languages
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
         golint ./...
         go vet ./...
         staticcheck ./...
-
+      if: success()  # Only run if previous steps succeeded
 
     # Node.js Setup (for TypeScript, JavaScript, and template linting)
     - name: Set up Node.js
@@ -48,22 +48,22 @@ jobs:
     - name: Install Node.js dependencies
       working-directory: cluster-ui
       run: |
-        npm install -g eslint typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
+        npm install -g eslint@^8.56.0 typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
         npm ci
 
-    # - name: Lint TypeScript
-    #   run: |
-    #     npx tsc --noEmit
-    #     npx eslint "**/*.{ts,tsx}" --fix
+    - name: Lint TypeScript
+      working-directory: cluster-ui
+      run: |
+        npx tsc --noEmit
+        npx eslint "**/*.{ts,tsx}" --fix
 
     - name: Lint JavaScript
+      working-directory: cluster-ui
       run: npx eslint "**/*.{js,jsx}" --fix
 
     - name: Lint Smarty Templates
+      working-directory: cluster-ui
       run: npx prettier --check "**/*.tpl" --plugin=prettier-plugin-smarty
-
-    # - name: Lint Mustache Templates
-    #   run: npx prettier --check "**/*.mustache" --plugin=prettier-plugin-mustache
 
     # Python Setup and Linting
     - name: Set up Python
@@ -79,14 +79,15 @@ jobs:
         pip install flake8 black isort pylint mypy
 
     - name: Lint Python
+      working-directory: cluster-service
       run: |
-        black .
+        black . --check
         flake8 .
         isort . --check-only
         pylint **/*.py || true
         mypy .
 
-    # # Report results
+    # Report results (optional)
     # - name: Upload lint results
     #   if: always()
     #   uses: actions/upload-artifact@v4
