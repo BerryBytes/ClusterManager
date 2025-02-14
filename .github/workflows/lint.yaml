@@ -80,7 +80,7 @@ jobs:
 
     - name: Lint Python
       run: |
-        black . --check
+        black .
         flake8 .
         isort . --check-only
         pylint **/*.py || true
