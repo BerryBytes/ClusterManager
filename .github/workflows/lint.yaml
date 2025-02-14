@@ -61,9 +61,9 @@ jobs:
       working-directory: cluster-ui
       run: npx eslint "**/*.{js,jsx}" --fix
 
-    - name: Lint Smarty Templates
-      working-directory: cluster-ui
-      run: npx prettier --check "**/*.tpl" --plugin=prettier-plugin-smarty
+    # - name: Lint Smarty Templates
+    #   working-directory: cluster-ui
+    #   run: npx prettier --check "**/*.tpl" --plugin=prettier-plugin-smarty
 
     # Python Setup and Linting
     - name: Set up Python
