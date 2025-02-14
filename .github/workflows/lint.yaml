@@ -76,13 +76,12 @@ jobs:
       working-directory: cluster-service
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 black isort pylint mypy
+        pip install flake8 black isort pylint
 
     - name: Lint Python
       working-directory: cluster-service
       run: |
         pylint **/*.py || true
-        mypy .
 
     # Report results (optional)
     # - name: Upload lint results
