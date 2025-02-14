@@ -100,7 +100,10 @@ func (c *Controller) syncToStdout(key string) error {
 						}
 					}
 					fmt.Printf("Container %s Status: %s\n", pod.Name, statusString)
-					patchClusterStatus(pod.Name, value, statusString)
+					if err := patchClusterStatus(pod.Name, value, statusString); err != nil {
+						klog.Errorf("Failed to patch cluster status: %v", err)
+						return err
+					}
 				}
 			}
 		}
@@ -215,12 +218,14 @@ func main() {
 	// Let's suppose that we knew about a pod "mypod" on our last run, therefore add it to the cache.
 	// If this pod is not there anymore, the controller will be notified about the removal after the
 	// cache has synchronized.
-	indexer.Add(&v1.Pod{
+	if err := indexer.Add(&v1.Pod{
 		ObjectMeta: meta_v1.ObjectMeta{
 			Name:      "mypod",
 			Namespace: v1.NamespaceDefault,
 		},
-	})
+	}); err != nil {
+		klog.Errorf("Failed to add pod to indexer: %v", err)
+	}
 
 	// Now let's start the controller
 	stop := make(chan struct{})
