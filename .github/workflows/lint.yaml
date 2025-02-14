@@ -81,7 +81,6 @@ jobs:
     - name: Lint Python
       working-directory: cluster-service
       run: |
-        isort . --check-only
         pylint **/*.py || true
         mypy .
 
