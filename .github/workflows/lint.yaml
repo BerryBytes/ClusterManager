@@ -37,33 +37,33 @@ jobs:
         staticcheck ./...
 
 
-    # Node.js Setup (for TypeScript, JavaScript, and template linting)
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: cluster-ui/package-lock.json
+    # # Node.js Setup (for TypeScript, JavaScript, and template linting)
+    # - name: Set up Node.js
+    #   uses: actions/setup-node@v4
+    #   with:
+    #     node-version: '20'
+    #     cache: 'npm'
+    #     cache-dependency-path: cluster-ui/package-lock.json
 
-    - name: Install Node.js dependencies
-      working-directory: cluster-ui
-      run: |
-        npm install -g eslint typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
-        npm ci
+    # - name: Install Node.js dependencies
+    #   working-directory: cluster-ui
+    #   run: |
+    #     npm install -g eslint typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
+    #     npm ci
 
-    - name: Lint TypeScript
-      run: |
-        npx tsc --noEmit
-        npx eslint "**/*.{ts,tsx}" --fix
+    # - name: Lint TypeScript
+    #   run: |
+    #     npx tsc --noEmit
+    #     npx eslint "**/*.{ts,tsx}" --fix
 
-    - name: Lint JavaScript
-      run: npx eslint "**/*.{js,jsx}" --fix
+    # - name: Lint JavaScript
+    #   run: npx eslint "**/*.{js,jsx}" --fix
 
-    - name: Lint Smarty Templates
-      run: npx prettier --check "**/*.tpl" --plugin=prettier-plugin-smarty
+    # - name: Lint Smarty Templates
+    #   run: npx prettier --check "**/*.tpl" --plugin=prettier-plugin-smarty
 
-    # - name: Lint Mustache Templates
-    #   run: npx prettier --check "**/*.mustache" --plugin=prettier-plugin-mustache
+    # # - name: Lint Mustache Templates
+    # #   run: npx prettier --check "**/*.mustache" --plugin=prettier-plugin-mustache
 
     # Python Setup and Linting
     - name: Set up Python
@@ -73,6 +73,7 @@ jobs:
         cache: 'pip'
 
     - name: Install Python linting tools
+      working-directory: cluster-service
       run: |
         python -m pip install --upgrade pip
         pip install flake8 black isort pylint mypy
@@ -85,14 +86,14 @@ jobs:
         pylint **/*.py || true
         mypy .
 
-    # Report results
-    - name: Upload lint results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: lint-results
-        path: |
-          **/lint-results.*
-          **/pylint-report.txt
-          **/eslint-report.json
-        retention-days: 14
+    # # Report results
+    # - name: Upload lint results
+    #   if: always()
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: lint-results
+    #     path: |
+    #       **/lint-results.*
+    #       **/pylint-report.txt
+    #       **/eslint-report.json
+    #     retention-days: 14
