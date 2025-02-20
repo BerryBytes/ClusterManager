@@ -152,10 +152,6 @@
 
 
 
-
-
-
-
 name: Multi-language Lint
 
 on:
@@ -184,7 +180,8 @@ jobs:
       cluster-status: ${{ steps.filter.outputs.cluster-status }}
       cluster-ui: ${{ steps.filter.outputs.cluster-ui }}
     steps:
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
         id: filter
         with:
           filters: |
@@ -198,55 +195,56 @@ jobs:
               - 'cluster-ui/**'
 
   python-lint:
-    needs: changes
-    if: needs.changes.outputs.cluster-api == 'true' || needs.changes.outputs.cluster-service == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         directory: [cluster-api, cluster-service]
-
+    
     steps:
       - uses: actions/checkout@v4
 
+      # Check if directory contains Python files
       - name: Check for Python files
         id: check-python
         run: |
-          if find "${{ matrix.directory }}" -name "*.py" -print -quit | grep -q .; then
-            echo "has_python_files=true" >> "$GITHUB_ENV"
+          if find ${{ matrix.directory }} -name "*.py" -print -quit | grep -q .; then
+            echo "has_python_files=true" >> $GITHUB_OUTPUT
           else
-            echo "has_python_files=false" >> "$GITHUB_ENV"
+            echo "has_python_files=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up Python
-        if: env.has_python_files == 'true'
+        if: steps.check-python.outputs.has_python_files == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-
+      
       - name: Install Python linting tools
-        if: env.has_python_files == 'true'
+        if: steps.check-python.outputs.has_python_files == 'true'
         working-directory: ${{ matrix.directory }}
         run: |
           python -m pip install --upgrade pip
           pip install flake8 black isort pylint
 
       - name: Run Pylint
-        if: env.has_python_files == 'true'
+        if: steps.check-python.outputs.has_python_files == 'true'
         working-directory: ${{ matrix.directory }}
         run: |
           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
       # - name: Run Black
-      #   if: env.has_python_files == 'true'
+      #   if: steps.check-python.outputs.has_python_files == 'true'
       #   working-directory: ${{ matrix.directory }}
-      #   run: black --check .
+      #   run: |
+      #     black --check .
 
       # - name: Run isort
-      #   if: env.has_python_files == 'true'
+      #   if: steps.check-python.outputs.has_python_files == 'true'
       #   working-directory: ${{ matrix.directory }}
-      #   run: isort --check-only --diff .
+      #   run: |
+      #     isort --check-only --diff .
 
   go-lint:
     needs: changes
@@ -254,7 +252,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
+      
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -302,7 +300,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
+      
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -325,3 +323,6 @@ jobs:
       - name: Lint JavaScript
         working-directory: cluster-ui
         run: npx eslint "**/*.{js,jsx}" --fix
+
+
+
