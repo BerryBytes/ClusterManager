@@ -18,17 +18,29 @@ on:
   workflow_dispatch:
 
 jobs:
-  python-lint:
+  determine-changes:
     runs-on: ubuntu-latest
+    outputs:
+      directories: ${{ steps.changed-dirs.outputs.directories }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get changed directories
+        id: changed-dirs
+        run: |
+          CHANGED_DIRS=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | awk -F'/' '{print $1}' | sort -u | uniq | grep -E '^(cluster-api|cluster-service)$' || echo "")
+          echo "directories=$(echo $CHANGED_DIRS | jq -R -s -c 'split(" ") | map(select(. != ""))')" >> $GITHUB_OUTPUT
+
+  python-lint:
+    needs: determine-changes
+    runs-on: ubuntu-latest
+    if: needs.determine-changes.outputs.directories != '[]'
     strategy:
       fail-fast: false
       matrix:
-        directory: [cluster-api, cluster-service]
-    
+        directory: ${{ fromJson(needs.determine-changes.outputs.directories) }}
     steps:
       - uses: actions/checkout@v4
 
-      # Check if directory contains Python files
       - name: Check for Python files
         id: check-python
         run: |
@@ -44,7 +56,7 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-      
+
       - name: Install Python linting tools
         if: steps.check-python.outputs.has_python_files == 'true'
         working-directory: ${{ matrix.directory }}
