@@ -18,64 +18,57 @@ on:
   workflow_dispatch:
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    outputs:
-      cluster-api: ${{ steps.filter.outputs.cluster-api }}
-      cluster-service: ${{ steps.filter.outputs.cluster-service }}
-      cluster-status: ${{ steps.filter.outputs.cluster-status }}
-      cluster-ui: ${{ steps.filter.outputs.cluster-ui }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            cluster-api:
-              - 'cluster-api/**/*.py'  # Only trigger if Python files are changed
-            cluster-service:
-              - 'cluster-service/**/*.py'  # Only trigger if Python files are changed
-            cluster-status:
-              - 'cluster-status/**/*.go'
-            cluster-ui:
-              - 'cluster-ui/**/*.{ts,tsx,js,jsx}'
-
   python-lint:
-    needs: changes
-    if: |
-      needs.changes.outputs.cluster-api == 'true' ||
-      needs.changes.outputs.cluster-service == 'true'
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         directory: [cluster-api, cluster-service]
-        include:
-          - directory: cluster-api
-            run-if: needs.changes.outputs.cluster-api == 'true'
-          - directory: cluster-service
-            run-if: needs.changes.outputs.cluster-service == 'true'
+    
     steps:
       - uses: actions/checkout@v4
-      - if: matrix.run-if
+
+      # Check if directory contains Python files
+      - name: Check for Python files
+        id: check-python
+        run: |
+          if find ${{ matrix.directory }} -name "*.py" -print -quit | grep -q .; then
+            echo "has_python_files=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_python_files=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Python
+        if: steps.check-python.outputs.has_python_files == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
       
-      - if: matrix.run-if
-        name: Install Python linting tools
+      - name: Install Python linting tools
+        if: steps.check-python.outputs.has_python_files == 'true'
         working-directory: ${{ matrix.directory }}
         run: |
           python -m pip install --upgrade pip
           pip install flake8 black isort pylint
 
-      - if: matrix.run-if
-        name: Lint Python
+      - name: Run Pylint
+        if: steps.check-python.outputs.has_python_files == 'true'
         working-directory: ${{ matrix.directory }}
         run: |
-          pylint **/*.py || true
+          find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
+
+      - name: Run Black
+        if: steps.check-python.outputs.has_python_files == 'true'
+        working-directory: ${{ matrix.directory }}
+        run: |
+          black --check .
+
+      - name: Run isort
+        if: steps.check-python.outputs.has_python_files == 'true'
+        working-directory: ${{ matrix.directory }}
+        run: |
+          isort --check-only --diff .
 
   # go-lint:
   #   needs: changes
