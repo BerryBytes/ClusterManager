@@ -195,17 +195,26 @@ jobs:
               - 'cluster-ui/**'
 
   python-lint:
+    needs: changes
+    if: |
+      needs.changes.outputs.cluster-api == 'true' ||
+      needs.changes.outputs.cluster-service == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        directory: [cluster-api, cluster-service]
+        include:
+          - directory: cluster-api
+            run: ${{ needs.changes.outputs.cluster-api == 'true' }}
+          - directory: cluster-service
+            run: ${{ needs.changes.outputs.cluster-service == 'true' }}
     
     steps:
       - uses: actions/checkout@v4
-
+      
       # Check if directory contains Python files
       - name: Check for Python files
+        if: matrix.run
         id: check-python
         run: |
           if find ${{ matrix.directory }} -name "*.py" -print -quit | grep -q .; then
@@ -215,33 +224,33 @@ jobs:
           fi
 
       - name: Set up Python
-        if: steps.check-python.outputs.has_python_files == 'true'
+        if: matrix.run && steps.check-python.outputs.has_python_files == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
       
       - name: Install Python linting tools
-        if: steps.check-python.outputs.has_python_files == 'true'
+        if: matrix.run && steps.check-python.outputs.has_python_files == 'true'
         working-directory: ${{ matrix.directory }}
         run: |
           python -m pip install --upgrade pip
           pip install flake8 black isort pylint
 
       - name: Run Pylint
-        if: steps.check-python.outputs.has_python_files == 'true'
+        if: matrix.run && steps.check-python.outputs.has_python_files == 'true'
         working-directory: ${{ matrix.directory }}
         run: |
           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
       # - name: Run Black
-      #   if: steps.check-python.outputs.has_python_files == 'true'
+      #   if: matrix.run && steps.check-python.outputs.has_python_files == 'true'
       #   working-directory: ${{ matrix.directory }}
       #   run: |
       #     black --check .
 
       # - name: Run isort
-      #   if: steps.check-python.outputs.has_python_files == 'true'
+      #   if: matrix.run && steps.check-python.outputs.has_python_files == 'true'
       #   working-directory: ${{ matrix.directory }}
       #   run: |
       #     isort --check-only --diff .
@@ -323,6 +332,3 @@ jobs:
       - name: Lint JavaScript
         working-directory: cluster-ui
         run: npx eslint "**/*.{js,jsx}" --fix
-
-
-
