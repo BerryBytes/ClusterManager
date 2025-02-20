@@ -156,13 +156,13 @@ name: Multi-language Lint
 
 on:
   push:
+    branches:
+      - '**'  # Run on all branches
     paths:
       - 'cluster-api/**'
       - 'cluster-service/**'
       - 'cluster-status/**'
       - 'cluster-ui/**'
-    branches:
-      - '**'  # Run on all branches
   pull_request:
     paths:
       - 'cluster-api/**'
@@ -196,98 +196,63 @@ jobs:
 
   python-lint-api:
     needs: changes
-    if: needs.changes.outputs.cluster-api == 'true'
+    if: fromJSON(needs.changes.outputs.cluster-api)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # Check if directory contains Python files
-      - name: Check for Python files
-        id: check-python
-        run: |
-          if find cluster-api -name "*.py" -print -quit | grep -q .; then
-            echo "has_python_files=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_python_files=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Set up Python
-        if: steps.check-python.outputs.has_python_files == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-      
       - name: Install Python linting tools
-        if: steps.check-python.outputs.has_python_files == 'true'
         working-directory: cluster-api
         run: |
           python -m pip install --upgrade pip
           pip install flake8 black isort pylint
-
       - name: Run Pylint
-        if: steps.check-python.outputs.has_python_files == 'true'
         working-directory: cluster-api
         run: |
           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
   python-lint-service:
     needs: changes
-    if: needs.changes.outputs.cluster-service == 'true'
+    if: fromJSON(needs.changes.outputs.cluster-service)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # Check if directory contains Python files
-      - name: Check for Python files
-        id: check-python
-        run: |
-          if find cluster-service -name "*.py" -print -quit | grep -q .; then
-            echo "has_python_files=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_python_files=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Set up Python
-        if: steps.check-python.outputs.has_python_files == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-      
       - name: Install Python linting tools
-        if: steps.check-python.outputs.has_python_files == 'true'
         working-directory: cluster-service
         run: |
           python -m pip install --upgrade pip
           pip install flake8 black isort pylint
-
       - name: Run Pylint
-        if: steps.check-python.outputs.has_python_files == 'true'
         working-directory: cluster-service
         run: |
           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
   go-lint:
     needs: changes
-    if: needs.changes.outputs.cluster-status == 'true'
+    if: fromJSON(needs.changes.outputs.cluster-status)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
           cache: true
-
       - name: Install Go tools
         run: |
           go install golang.org/x/tools/cmd/goimports@latest
           go install honnef.co/go/tools/cmd/staticcheck@latest
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
           echo "$HOME/go/bin" >> $GITHUB_PATH
-
       - name: Go Format Check
         working-directory: cluster-status
         run: |
@@ -297,7 +262,6 @@ jobs:
             echo "Please run 'gofmt -w .' to format your code."
             exit 1
           fi
-
       - name: Go Imports Check
         working-directory: cluster-status
         run: |
@@ -307,41 +271,35 @@ jobs:
             echo "Please run 'goimports -w .' to fix imports."
             exit 1
           fi
-
       - name: Run golangci-lint
         working-directory: cluster-status
         run: golangci-lint run --timeout=5m
-
       - name: Run staticcheck
         working-directory: cluster-status
         run: staticcheck ./...
 
   typescript-lint:
     needs: changes
-    if: needs.changes.outputs.cluster-ui == 'true'
+    if: fromJSON(needs.changes.outputs.cluster-ui)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: cluster-ui/package-lock.json
-
       - name: Install Node.js dependencies
         working-directory: cluster-ui
         run: |
           npm install -g eslint@^8.56.0 typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
           npm ci
-
       - name: Lint TypeScript
         working-directory: cluster-ui
         run: |
           npx tsc --noEmit
           npx eslint "**/*.{ts,tsx}" --fix
-
       - name: Lint JavaScript
         working-directory: cluster-ui
         run: npx eslint "**/*.{js,jsx}" --fix
