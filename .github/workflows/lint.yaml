@@ -34,11 +34,11 @@ jobs:
         with:
           filters: |
             cluster-api:
-              - 'cluster-api/**/*.py'
+              - 'cluster-api/**'  # Changed to catch all files in cluster-api
             cluster-service:
-              - 'cluster-service/**/*.py'
+              - 'cluster-service/**'  # Changed to catch all files in cluster-service
             cluster-status:
-              - 'cluster-status/**/*.go'
+              - 'cluster-status/**'  # Changed to catch all files in cluster-status
             cluster-ui:
               - 'cluster-ui/**/*.{ts,tsx,js,jsx}'
 
