@@ -18,57 +18,117 @@ on:
   workflow_dispatch:
 
 jobs:
-  python-lint:
+  changes:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        directory: [cluster-api, cluster-service]
-    
+    permissions:
+      pull-requests: read
+    outputs:
+      cluster-api: ${{ steps.filter.outputs.cluster-api }}
+      cluster-service: ${{ steps.filter.outputs.cluster-service }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            cluster-api:
+              - 'cluster-api/**/*.py'
+            cluster-service:
+              - 'cluster-service/**/*.py'
+
+  lint-cluster-api:
+    needs: changes
+    if: needs.changes.outputs.cluster-api == 'true'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Check if directory contains Python files
-      - name: Check for Python files
-        id: check-python
-        run: |
-          if find ${{ matrix.directory }} -name "*.py" -print -quit | grep -q .; then
-            echo "has_python_files=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_python_files=false" >> $GITHUB_OUTPUT
-          fi
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v41
+        with:
+          files: cluster-api/**/*.py
 
       - name: Set up Python
-        if: steps.check-python.outputs.has_python_files == 'true'
+        if: steps.changed-files.outputs.any_changed == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
       
       - name: Install Python linting tools
-        if: steps.check-python.outputs.has_python_files == 'true'
-        working-directory: ${{ matrix.directory }}
+        if: steps.changed-files.outputs.any_changed == 'true'
+        working-directory: cluster-api
         run: |
           python -m pip install --upgrade pip
           pip install flake8 black isort pylint
 
       - name: Run Pylint
-        if: steps.check-python.outputs.has_python_files == 'true'
-        working-directory: ${{ matrix.directory }}
+        if: steps.changed-files.outputs.any_changed == 'true'
+        working-directory: cluster-api
         run: |
-          find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
+          echo "Changed files:"
+          echo "${{ steps.changed-files.outputs.all_changed_files }}"
+          echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | xargs pylint || echo "Linting completed with warnings"
 
       - name: Run Black
-        if: steps.check-python.outputs.has_python_files == 'true'
-        working-directory: ${{ matrix.directory }}
+        if: steps.changed-files.outputs.any_changed == 'true'
+        working-directory: cluster-api
         run: |
-          black --check .
+          echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | xargs black --check
 
       - name: Run isort
-        if: steps.check-python.outputs.has_python_files == 'true'
-        working-directory: ${{ matrix.directory }}
+        if: steps.changed-files.outputs.any_changed == 'true'
+        working-directory: cluster-api
         run: |
-          isort --check-only --diff .
+          echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | xargs isort --check-only --diff
+
+  lint-cluster-service:
+    needs: changes
+    if: needs.changes.outputs.cluster-service == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v41
+        with:
+          files: cluster-service/**/*.py
+
+      - name: Set up Python
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Python linting tools
+        if: steps.changed-files.outputs.any_changed == 'true'
+        working-directory: cluster-service
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort pylint
+
+      - name: Run Pylint
+        if: steps.changed-files.outputs.any_changed == 'true'
+        working-directory: cluster-service
+        run: |
+          echo "Changed files:"
+          echo "${{ steps.changed-files.outputs.all_changed_files }}"
+          echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | xargs pylint || echo "Linting completed with warnings"
+
+      - name: Run Black
+        if: steps.changed-files.outputs.any_changed == 'true'
+        working-directory: cluster-service
+        run: |
+          echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | xargs black --check
+
+      - name: Run isort
+        if: steps.changed-files.outputs.any_changed == 'true'
+        working-directory: cluster-service
+        run: |
+          echo "${{ steps.changed-files.outputs.all_changed_files }}" | tr ' ' '\n' | xargs isort --check-only --diff
 
   # go-lint:
   #   needs: changes

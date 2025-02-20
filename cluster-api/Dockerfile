@@ -13,8 +13,8 @@ COPY requirements.txt .
 RUN python -m pip install -r requirements.txt
 
 WORKDIR /app  
-COPY . /app 
-
+COPY . /app  
+ 
 # Install your app
 COPY . .
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
