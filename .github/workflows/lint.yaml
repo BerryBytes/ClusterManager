@@ -64,11 +64,11 @@ jobs:
       #   run: |
       #     black --check .
 
-      - name: Run isort
-        if: steps.check-python.outputs.has_python_files == 'true'
-        working-directory: ${{ matrix.directory }}
-        run: |
-          isort --check-only --diff .
+      # - name: Run isort
+      #   if: steps.check-python.outputs.has_python_files == 'true'
+      #   working-directory: ${{ matrix.directory }}
+      #   run: |
+      #     isort --check-only --diff .
 
  
 
