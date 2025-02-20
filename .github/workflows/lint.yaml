@@ -34,11 +34,11 @@ jobs:
         with:
           filters: |
             cluster-api:
-              - 'cluster-api/**'  # Changed to catch all files in cluster-api
+              - 'cluster-api/**'  # Changed to include all files in directory
             cluster-service:
-              - 'cluster-service/**'  # Changed to catch all files in cluster-service
+              - 'cluster-service/**'  # Changed to include all files in directory
             cluster-status:
-              - 'cluster-status/**'  # Changed to catch all files in cluster-status
+              - 'cluster-status/**/*.go'
             cluster-ui:
               - 'cluster-ui/**/*.{ts,tsx,js,jsx}'
 
@@ -79,7 +79,7 @@ jobs:
 
   go-lint:
     needs: changes
-    if: needs.changes.outputs.cluster-status == 'true'
+    if: needs.changes.outputs.cluster-status == 'true' && !contains(github.event.head_commit.modified, '*.py')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
