@@ -3,22 +3,44 @@ name: Multi-language Lint
 on:
   push:
     paths:
-      - 'cluster-api/**'
-      - 'cluster-service/**'
-      - 'cluster-status/**'
-      - 'cluster-ui/**'
+      - 'cluster-api/**/*.py'
+      - 'cluster-service/**/*.py'
+      - 'cluster-status/**/*.go'
+      - 'cluster-ui/**/*.{ts,tsx,js,jsx}'
     branches:
       - '**'  
   pull_request:
     paths:
-      - 'cluster-api/**'
-      - 'cluster-service/**'
-      - 'cluster-status/**'
-      - 'cluster-ui/**'
+      - 'cluster-api/**/*.py'
+      - 'cluster-service/**/*.py'
+      - 'cluster-status/**/*.go'
+      - 'cluster-ui/**/*.{ts,tsx,js,jsx}'
   workflow_dispatch:
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      go: ${{ steps.filter.outputs.go }}
+      typescript: ${{ steps.filter.outputs.typescript }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            python:
+              - 'cluster-api/**/*.py'
+              - 'cluster-service/**/*.py'
+            go:
+              - 'cluster-status/**/*.go'
+            typescript:
+              - 'cluster-ui/**/*.{ts,tsx,js,jsx}'
+
   python-lint:
+    needs: changes
+    if: needs.changes.outputs.python == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -58,21 +80,9 @@ jobs:
         run: |
           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
-      # - name: Run Black
-      #   if: steps.check-python.outputs.has_python_files == 'true'
-      #   working-directory: ${{ matrix.directory }}
-      #   run: |
-      #     black --check .
-
-      # - name: Run isort
-      #   if: steps.check-python.outputs.has_python_files == 'true'
-      #   working-directory: ${{ matrix.directory }}
-      #   run: |
-      #     isort --check-only --diff .
-
- 
-
   go-lint:
+    needs: changes
+    if: needs.changes.outputs.go == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -119,6 +129,8 @@ jobs:
         run: staticcheck ./...
 
   typescript-lint:
+    needs: changes
+    if: needs.changes.outputs.typescript == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
