@@ -172,36 +172,38 @@ on:
   workflow_dispatch:
 
 jobs:
-  changes:
+  detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      cluster-api: ${{ steps.filter.outputs.cluster-api }}
-      cluster-service: ${{ steps.filter.outputs.cluster-service }}
-      cluster-status: ${{ steps.filter.outputs.cluster-status }}
-      cluster-ui: ${{ steps.filter.outputs.cluster-ui }}
+      python-api: ${{ steps.changes.outputs.python-api }}
+      python-service: ${{ steps.changes.outputs.python-service }}
+      go-status: ${{ steps.changes.outputs.go-status }}
+      ts-ui: ${{ steps.changes.outputs.ts-ui }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v2
-        id: filter
-        with:
-          filters: |
-            cluster-api:
-              - 'cluster-api/**'
-            cluster-service:
-              - 'cluster-service/**'
-            cluster-status:
-              - 'cluster-status/**'
-            cluster-ui:
-              - 'cluster-ui/**'
+      - id: changes
+        name: Detect file changes
+        run: |
+          # Get changed files
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+          else
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }})
+          fi
+
+          # Check each directory for changes
+          echo "python-api=$([[ $(echo "$CHANGED_FILES" | grep -E "^cluster-api/.*") ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          echo "python-service=$([[ $(echo "$CHANGED_FILES" | grep -E "^cluster-service/.*") ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          echo "go-status=$([[ $(echo "$CHANGED_FILES" | grep -E "^cluster-status/.*") ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+          echo "ts-ui=$([[ $(echo "$CHANGED_FILES" | grep -E "^cluster-ui/.*") ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
   python-lint-api:
-    needs: changes
-    if: fromJSON(needs.changes.outputs.cluster-api)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.python-api == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -216,13 +218,12 @@ jobs:
           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
   python-lint-service:
-    needs: changes
-    if: fromJSON(needs.changes.outputs.cluster-service)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.python-service == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -237,13 +238,12 @@ jobs:
           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
   go-lint:
-    needs: changes
-    if: fromJSON(needs.changes.outputs.cluster-status)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.go-status == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.22'
           cache: true
@@ -279,13 +279,12 @@ jobs:
         run: staticcheck ./...
 
   typescript-lint:
-    needs: changes
-    if: fromJSON(needs.changes.outputs.cluster-ui)
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ts-ui == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
