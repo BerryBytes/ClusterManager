@@ -6,7 +6,7 @@ on:
       - 'cluster-api/**/*.py'
       - 'cluster-service/**/*.py'
       - 'cluster-status/**/*.go'
-      - 'cluster-ui/**/*.{ts,tsx,js,jsx}'
+      - 'cluster-ui/**/*.{ts,tsx,js,jsx}'  
     branches:
       - '**'  
   pull_request:
