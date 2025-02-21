@@ -2,54 +2,60 @@ name: Multi-language Lint
 
 on:
   push:
+    paths:
+      - 'cluster-api/**'
+      - 'cluster-service/**'
+      - 'cluster-status/**'
+      - 'cluster-ui/**'
     branches:
-      - '**'
+      - '**'  
   pull_request:
+    paths:
+      - 'cluster-api/**'
+      - 'cluster-service/**'
+      - 'cluster-status/**'
+      - 'cluster-ui/**'
   workflow_dispatch:
 
 jobs:
-  changes:
+  changed_files:
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-      contents: read
     outputs:
-      python_api: ${{ steps.filter.outputs.python_api }}
-      python_service: ${{ steps.filter.outputs.python_service }}
-      go: ${{ steps.filter.outputs.go }}
-      typescript: ${{ steps.filter.outputs.typescript }}
+      python_api: ${{ steps.changes.outputs.cluster-api }}
+      python_service: ${{ steps.changes.outputs.cluster-service }}
+      go: ${{ steps.changes.outputs.cluster-status }}
+      typescript: ${{ steps.changes.outputs.cluster-ui }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
-        id: filter
+        id: changes
         with:
           filters: |
-            python_api:
+            cluster-api:
               - 'cluster-api/**'
-            python_service:
+            cluster-service:
               - 'cluster-service/**'
-            go:
+            cluster-status:
               - 'cluster-status/**'
-            typescript:
+            cluster-ui:
               - 'cluster-ui/**'
 
   python-lint:
-    needs: changes
-    if: ${{ needs.changes.outputs.python_api == 'true' || needs.changes.outputs.python_service == 'true' || github.event_name == 'workflow_dispatch' }}
+    needs: changed_files
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changed_files.outputs.python_api == 'true' ||
+      needs.changed_files.outputs.python_service == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         directory: [cluster-api, cluster-service]
-        exclude:
-          - directory: cluster-api
-            if: ${{ needs.changes.outputs.python_api != 'true' && github.event_name != 'workflow_dispatch' }}
-          - directory: cluster-service
-            if: ${{ needs.changes.outputs.python_service != 'true' && github.event_name != 'workflow_dispatch' }}
     
     steps:
       - uses: actions/checkout@v4
 
+      # Check if directory contains Python files
       - name: Check for Python files
         id: check-python
         run: |
@@ -80,8 +86,10 @@ jobs:
           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
   go-lint:
-    needs: changes
-    if: ${{ needs.changes.outputs.go == 'true' || github.event_name == 'workflow_dispatch' }}
+    needs: changed_files
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changed_files.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -128,8 +136,10 @@ jobs:
         run: staticcheck ./...
 
   typescript-lint:
-    needs: changes
-    if: ${{ needs.changes.outputs.typescript == 'true' || github.event_name == 'workflow_dispatch' }}
+    needs: changed_files
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changed_files.outputs.typescript == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
