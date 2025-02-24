@@ -3,169 +3,166 @@ name: Multi-language Lint
 on:
   push:
     paths:
-      - 'cluster-api/**'
-      - 'cluster-service/**'
-      - 'cluster-status/**'
-      - 'cluster-ui/**'
+      - 'cluster-api/**/*.py'
+      - 'cluster-api/requirements*.txt'
+      - 'cluster-service/**/*.py'
+      - 'cluster-service/requirements*.txt'
+      - 'cluster-status/**/*.go'
+      - 'cluster-status/go.mod'
+      - 'cluster-status/go.sum'
+      - 'cluster-ui/**/*.{ts,tsx,js,jsx}'
+      - 'cluster-ui/package*.json'
     branches:
-      - '**'  
+      - '**'
   pull_request:
     paths:
-      - 'cluster-api/**'
-      - 'cluster-service/**'
-      - 'cluster-status/**'
-      - 'cluster-ui/**'
+      - 'cluster-api/**/*.py'
+      - 'cluster-api/requirements*.txt'
+      - 'cluster-service/**/*.py'
+      - 'cluster-service/requirements*.txt'
+      - 'cluster-status/**/*.go'
+      - 'cluster-status/go.mod'
+      - 'cluster-status/go.sum'
+      - 'cluster-ui/**/*.{ts,tsx,js,jsx}'
+      - 'cluster-ui/package*.json'
   workflow_dispatch:
 
 jobs:
   changed_files:
     runs-on: ubuntu-latest
     outputs:
-      python_api: ${{ steps.changes.outputs.cluster-api }}
-      python_service: ${{ steps.changes.outputs.cluster-service }}
-      go: ${{ steps.changes.outputs.cluster-status }}
-      typescript: ${{ steps.changes.outputs.cluster-ui }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
+      
       - uses: dorny/paths-filter@v3
         id: changes
         with:
           filters: |
-            cluster-api:
-              - 'cluster-api/**'
-            cluster-service:
-              - 'cluster-service/**'
-            cluster-status:
-              - 'cluster-status/**'
-            cluster-ui:
-              - 'cluster-ui/**'
+            python_api:
+              - 'cluster-api/**/*.py'
+              - 'cluster-api/requirements*.txt'
+            python_service:
+              - 'cluster-service/**/*.py'
+              - 'cluster-service/requirements*.txt'
+            go:
+              - 'cluster-status/**/*.go'
+              - 'cluster-status/go.mod'
+              - 'cluster-status/go.sum'
+            typescript:
+              - 'cluster-ui/**/*.{ts,tsx,js,jsx}'
+              - 'cluster-ui/package*.json'
 
-  python-lint:
+      - id: set-matrix
+        run: |
+          matrix="{\"include\":["
+          if [[ "${{ steps.changes.outputs.python_api }}" == "true" ]]; then
+            matrix="$matrix{\"language\":\"python\",\"directory\":\"cluster-api\"},"
+          fi
+          if [[ "${{ steps.changes.outputs.python_service }}" == "true" ]]; then
+            matrix="$matrix{\"language\":\"python\",\"directory\":\"cluster-service\"},"
+          fi
+          if [[ "${{ steps.changes.outputs.go }}" == "true" ]]; then
+            matrix="$matrix{\"language\":\"go\",\"directory\":\"cluster-status\"},"
+          fi
+          if [[ "${{ steps.changes.outputs.typescript }}" == "true" ]]; then
+            matrix="$matrix{\"language\":\"typescript\",\"directory\":\"cluster-ui\"},"
+          fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            matrix="{\"include\":[{\"language\":\"python\",\"directory\":\"cluster-api\"},{\"language\":\"python\",\"directory\":\"cluster-service\"},{\"language\":\"go\",\"directory\":\"cluster-status\"},{\"language\":\"typescript\",\"directory\":\"cluster-ui\"}]}"
+          else
+            matrix="${matrix%,}]}"
+          fi
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
+  lint:
     needs: changed_files
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      needs.changed_files.outputs.python_api == 'true' ||
-      needs.changed_files.outputs.python_service == 'true'
+    if: needs.changed_files.outputs.matrix != '{"include":[]}'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        directory: [cluster-api, cluster-service]
+      matrix: ${{fromJson(needs.changed_files.outputs.matrix)}}
     
     steps:
       - uses: actions/checkout@v4
 
-      # Check if directory contains Python files
-      - name: Check for Python files
-        id: check-python
-        run: |
-          if find ${{ matrix.directory }} -name "*.py" -print -quit | grep -q .; then
-            echo "has_python_files=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_python_files=false" >> $GITHUB_OUTPUT
-          fi
-
+      # Python setup and lint
       - name: Set up Python
-        if: steps.check-python.outputs.has_python_files == 'true'
+        if: matrix.language == 'python'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
-      
+          cache-dependency-path: |
+            ${{ matrix.directory }}/requirements*.txt
+
       - name: Install Python linting tools
-        if: steps.check-python.outputs.has_python_files == 'true'
+        if: matrix.language == 'python'
         working-directory: ${{ matrix.directory }}
         run: |
           python -m pip install --upgrade pip
           pip install flake8 black isort pylint
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
 
-      - name: Run Pylint
-        if: steps.check-python.outputs.has_python_files == 'true'
+      - name: Run Python linters
+        if: matrix.language == 'python'
         working-directory: ${{ matrix.directory }}
         run: |
-          find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
+          black --check .
+          isort --check-only --diff .
+          flake8 .
+          find . -type f -name "*.py" -not -path "*/\.*" -not -path "*/venv/*" -exec pylint {} +
 
-  go-lint:
-    needs: changed_files
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      needs.changed_files.outputs.go == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
+      # Go setup and lint
       - name: Set up Go
+        if: matrix.language == 'go'
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
           cache: true
+          cache-dependency-path: ${{ matrix.directory }}/go.sum
 
       - name: Install Go tools
+        if: matrix.language == 'go'
         run: |
           go install golang.org/x/tools/cmd/goimports@latest
           go install honnef.co/go/tools/cmd/staticcheck@latest
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
           echo "$HOME/go/bin" >> $GITHUB_PATH
 
-      - name: Go Format Check
-        working-directory: cluster-status
+      - name: Run Go linters
+        if: matrix.language == 'go'
+        working-directory: ${{ matrix.directory }}
         run: |
-          if [ -n "$(gofmt -l .)" ]; then
-            echo "The following files need formatting:"
-            gofmt -l .
-            echo "Please run 'gofmt -w .' to format your code."
-            exit 1
-          fi
+          gofmt -d -e . && test -z "$(gofmt -l .)"
+          goimports -d -e . && test -z "$(goimports -l .)"
+          go vet ./...
+          golangci-lint run --timeout=5m
+          staticcheck ./...
 
-      - name: Go Imports Check
-        working-directory: cluster-status
-        run: |
-          if [ -n "$(goimports -l .)" ]; then
-            echo "The following files have incorrect imports:"
-            goimports -l .
-            echo "Please run 'goimports -w .' to fix imports."
-            exit 1
-          fi
-
-      - name: Run golangci-lint
-        working-directory: cluster-status
-        run: golangci-lint run --timeout=5m
-
-      - name: Run staticcheck
-        working-directory: cluster-status
-        run: staticcheck ./...
-
-  typescript-lint:
-    needs: changed_files
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      needs.changed_files.outputs.typescript == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
+      # TypeScript setup and lint
       - name: Set up Node.js
+        if: matrix.language == 'typescript'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: cluster-ui/package-lock.json
+          cache-dependency-path: ${{ matrix.directory }}/package-lock.json
 
       - name: Install Node.js dependencies
-        working-directory: cluster-ui
+        if: matrix.language == 'typescript'
+        working-directory: ${{ matrix.directory }}
         run: |
-          npm install -g eslint@^8.56.0 typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
           npm ci
+          npm install -g typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
 
-      - name: Lint TypeScript
-        working-directory: cluster-ui
+      - name: Run TypeScript/JavaScript linters
+        if: matrix.language == 'typescript'
+        working-directory: ${{ matrix.directory }}
         run: |
           npx tsc --noEmit
-          npx eslint "**/*.{ts,tsx}" --fix
-
-      - name: Lint JavaScript
-        working-directory: cluster-ui
-        run: npx eslint "**/*.{js,jsx}" --fix
+          npx eslint . --ext .ts,.tsx,.js,.jsx --max-warnings 0
 
 
 
