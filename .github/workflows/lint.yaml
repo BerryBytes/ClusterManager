@@ -1,171 +1,171 @@
-name: Multi-language Lint
+# name: Multi-language Lint
 
-on:
-  push:
-    paths:
-      - 'cluster-api/**'
-      - 'cluster-service/**'
-      - 'cluster-status/**'
-      - 'cluster-ui/**'
-    branches:
-      - '**'  
-  pull_request:
-    paths:
-      - 'cluster-api/**'
-      - 'cluster-service/**'
-      - 'cluster-status/**'
-      - 'cluster-ui/**'
-  workflow_dispatch:
+# on:
+#   push:
+#     paths:
+#       - 'cluster-api/**'
+#       - 'cluster-service/**'
+#       - 'cluster-status/**'
+#       - 'cluster-ui/**'
+#     branches:
+#       - '**'  
+#   pull_request:
+#     paths:
+#       - 'cluster-api/**'
+#       - 'cluster-service/**'
+#       - 'cluster-status/**'
+#       - 'cluster-ui/**'
+#   workflow_dispatch:
 
-jobs:
-  changed_files:
-    runs-on: ubuntu-latest
-    outputs:
-      python_api: ${{ steps.changes.outputs.cluster-api }}
-      python_service: ${{ steps.changes.outputs.cluster-service }}
-      go: ${{ steps.changes.outputs.cluster-status }}
-      typescript: ${{ steps.changes.outputs.cluster-ui }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: changes
-        with:
-          filters: |
-            cluster-api:
-              - 'cluster-api/**'
-            cluster-service:
-              - 'cluster-service/**'
-            cluster-status:
-              - 'cluster-status/**'
-            cluster-ui:
-              - 'cluster-ui/**'
+# jobs:
+#   changed_files:
+#     runs-on: ubuntu-latest
+#     outputs:
+#       python_api: ${{ steps.changes.outputs.cluster-api }}
+#       python_service: ${{ steps.changes.outputs.cluster-service }}
+#       go: ${{ steps.changes.outputs.cluster-status }}
+#       typescript: ${{ steps.changes.outputs.cluster-ui }}
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: dorny/paths-filter@v3
+#         id: changes
+#         with:
+#           filters: |
+#             cluster-api:
+#               - 'cluster-api/**'
+#             cluster-service:
+#               - 'cluster-service/**'
+#             cluster-status:
+#               - 'cluster-status/**'
+#             cluster-ui:
+#               - 'cluster-ui/**'
 
-  python-lint:
-    needs: changed_files
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      needs.changed_files.outputs.python_api == 'true' ||
-      needs.changed_files.outputs.python_service == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        directory: [cluster-api, cluster-service]
+#   python-lint:
+#     needs: changed_files
+#     if: |
+#       github.event_name == 'workflow_dispatch' ||
+#       needs.changed_files.outputs.python_api == 'true' ||
+#       needs.changed_files.outputs.python_service == 'true'
+#     runs-on: ubuntu-latest
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         directory: [cluster-api, cluster-service]
     
-    steps:
-      - uses: actions/checkout@v4
+#     steps:
+#       - uses: actions/checkout@v4
 
-      # Check if directory contains Python files
-      - name: Check for Python files
-        id: check-python
-        run: |
-          if find ${{ matrix.directory }} -name "*.py" -print -quit | grep -q .; then
-            echo "has_python_files=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_python_files=false" >> $GITHUB_OUTPUT
-          fi
+#       # Check if directory contains Python files
+#       - name: Check for Python files
+#         id: check-python
+#         run: |
+#           if find ${{ matrix.directory }} -name "*.py" -print -quit | grep -q .; then
+#             echo "has_python_files=true" >> $GITHUB_OUTPUT
+#           else
+#             echo "has_python_files=false" >> $GITHUB_OUTPUT
+#           fi
 
-      - name: Set up Python
-        if: steps.check-python.outputs.has_python_files == 'true'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
+#       - name: Set up Python
+#         if: steps.check-python.outputs.has_python_files == 'true'
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.11'
+#           cache: 'pip'
       
-      - name: Install Python linting tools
-        if: steps.check-python.outputs.has_python_files == 'true'
-        working-directory: ${{ matrix.directory }}
-        run: |
-          python -m pip install --upgrade pip
-          pip install flake8 black isort pylint
+#       - name: Install Python linting tools
+#         if: steps.check-python.outputs.has_python_files == 'true'
+#         working-directory: ${{ matrix.directory }}
+#         run: |
+#           python -m pip install --upgrade pip
+#           pip install flake8 black isort pylint
 
-      - name: Run Pylint
-        if: steps.check-python.outputs.has_python_files == 'true'
-        working-directory: ${{ matrix.directory }}
-        run: |
-          find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
+#       - name: Run Pylint
+#         if: steps.check-python.outputs.has_python_files == 'true'
+#         working-directory: ${{ matrix.directory }}
+#         run: |
+#           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
-  go-lint:
-    needs: changed_files
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      needs.changed_files.outputs.go == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+#   go-lint:
+#     needs: changed_files
+#     if: |
+#       github.event_name == 'workflow_dispatch' ||
+#       needs.changed_files.outputs.go == 'true'
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
       
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22'
-          cache: true
+#       - name: Set up Go
+#         uses: actions/setup-go@v5
+#         with:
+#           go-version: '1.22'
+#           cache: true
 
-      - name: Install Go tools
-        run: |
-          go install golang.org/x/tools/cmd/goimports@latest
-          go install honnef.co/go/tools/cmd/staticcheck@latest
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-          echo "$HOME/go/bin" >> $GITHUB_PATH
+#       - name: Install Go tools
+#         run: |
+#           go install golang.org/x/tools/cmd/goimports@latest
+#           go install honnef.co/go/tools/cmd/staticcheck@latest
+#           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+#           echo "$HOME/go/bin" >> $GITHUB_PATH
 
-      - name: Go Format Check
-        working-directory: cluster-status
-        run: |
-          if [ -n "$(gofmt -l .)" ]; then
-            echo "The following files need formatting:"
-            gofmt -l .
-            echo "Please run 'gofmt -w .' to format your code."
-            exit 1
-          fi
+#       - name: Go Format Check
+#         working-directory: cluster-status
+#         run: |
+#           if [ -n "$(gofmt -l .)" ]; then
+#             echo "The following files need formatting:"
+#             gofmt -l .
+#             echo "Please run 'gofmt -w .' to format your code."
+#             exit 1
+#           fi
 
-      - name: Go Imports Check
-        working-directory: cluster-status
-        run: |
-          if [ -n "$(goimports -l .)" ]; then
-            echo "The following files have incorrect imports:"
-            goimports -l .
-            echo "Please run 'goimports -w .' to fix imports."
-            exit 1
-          fi
+#       - name: Go Imports Check
+#         working-directory: cluster-status
+#         run: |
+#           if [ -n "$(goimports -l .)" ]; then
+#             echo "The following files have incorrect imports:"
+#             goimports -l .
+#             echo "Please run 'goimports -w .' to fix imports."
+#             exit 1
+#           fi
 
-      - name: Run golangci-lint
-        working-directory: cluster-status
-        run: golangci-lint run --timeout=5m
+#       - name: Run golangci-lint
+#         working-directory: cluster-status
+#         run: golangci-lint run --timeout=5m
 
-      - name: Run staticcheck
-        working-directory: cluster-status
-        run: staticcheck ./...
+#       - name: Run staticcheck
+#         working-directory: cluster-status
+#         run: staticcheck ./...
 
-  typescript-lint:
-    needs: changed_files
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      needs.changed_files.outputs.typescript == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+#   typescript-lint:
+#     needs: changed_files
+#     if: |
+#       github.event_name == 'workflow_dispatch' ||
+#       needs.changed_files.outputs.typescript == 'true'
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
       
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: cluster-ui/package-lock.json
+#       - name: Set up Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
+#           cache: 'npm'
+#           cache-dependency-path: cluster-ui/package-lock.json
 
-      - name: Install Node.js dependencies
-        working-directory: cluster-ui
-        run: |
-          npm install -g eslint@^8.56.0 typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
-          npm ci
+#       - name: Install Node.js dependencies
+#         working-directory: cluster-ui
+#         run: |
+#           npm install -g eslint@^8.56.0 typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
+#           npm ci
 
-      - name: Lint TypeScript
-        working-directory: cluster-ui
-        run: |
-          npx tsc --noEmit
-          npx eslint "**/*.{ts,tsx}" --fix
+#       - name: Lint TypeScript
+#         working-directory: cluster-ui
+#         run: |
+#           npx tsc --noEmit
+#           npx eslint "**/*.{ts,tsx}" --fix
 
-      - name: Lint JavaScript
-        working-directory: cluster-ui
-        run: npx eslint "**/*.{js,jsx}" --fix
+#       - name: Lint JavaScript
+#         working-directory: cluster-ui
+#         run: npx eslint "**/*.{js,jsx}" --fix
 
 
 
@@ -191,153 +191,265 @@ jobs:
 
   
 
-# name: Multi-language Lint
+# # name: Multi-language Lint
 
-# on:
-#   push:
-#     branches:
-#       - '**'  # Run on all branches
-#     paths:
-#       - 'cluster-api/**'
-#       - 'cluster-service/**'
-#       - 'cluster-status/**'
-#       - 'cluster-ui/**'
-#   pull_request:
-#     paths:
-#       - 'cluster-api/**'
-#       - 'cluster-service/**'
-#       - 'cluster-status/**'
-#       - 'cluster-ui/**'
-#   workflow_dispatch:
+# # on:
+# #   push:
+# #     branches:
+# #       - '**'  # Run on all branches
+# #     paths:
+# #       - 'cluster-api/**'
+# #       - 'cluster-service/**'
+# #       - 'cluster-status/**'
+# #       - 'cluster-ui/**'
+# #   pull_request:
+# #     paths:
+# #       - 'cluster-api/**'
+# #       - 'cluster-service/**'
+# #       - 'cluster-status/**'
+# #       - 'cluster-ui/**'
+# #   workflow_dispatch:
 
-# jobs:
-#   detect-changes:
-#     runs-on: ubuntu-latest
-#     outputs:
-#       python-api: ${{ steps.changes.outputs.python-api }}
-#       python-service: ${{ steps.changes.outputs.python-service }}
-#       go-status: ${{ steps.changes.outputs.go-status }}
-#       ts-ui: ${{ steps.changes.outputs.ts-ui }}
-#     steps:
-#       - uses: actions/checkout@v4
-#       - id: changes
-#         name: Detect file changes
-#         run: |
-#           # Get changed files
-#           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-#             CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
-#           else
-#             CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }})
-#           fi
+# # jobs:
+# #   detect-changes:
+# #     runs-on: ubuntu-latest
+# #     outputs:
+# #       python-api: ${{ steps.changes.outputs.python-api }}
+# #       python-service: ${{ steps.changes.outputs.python-service }}
+# #       go-status: ${{ steps.changes.outputs.go-status }}
+# #       ts-ui: ${{ steps.changes.outputs.ts-ui }}
+# #     steps:
+# #       - uses: actions/checkout@v4
+# #       - id: changes
+# #         name: Detect file changes
+# #         run: |
+# #           # Get changed files
+# #           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+# #             CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+# #           else
+# #             CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }})
+# #           fi
 
-#           # Check each directory for changes
-#           echo "python-api=$([[ $(echo "$CHANGED_FILES" | grep -E "^cluster-api/.*") ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-#           echo "python-service=$([[ $(echo "$CHANGED_FILES" | grep -E "^cluster-service/.*") ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-#           echo "go-status=$([[ $(echo "$CHANGED_FILES" | grep -E "^cluster-status/.*") ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
-#           echo "ts-ui=$([[ $(echo "$CHANGED_FILES" | grep -E "^cluster-ui/.*") ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+# #           # Check each directory for changes
+# #           echo "python-api=$([[ $(echo "$CHANGED_FILES" | grep -E "^cluster-api/.*") ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+# #           echo "python-service=$([[ $(echo "$CHANGED_FILES" | grep -E "^cluster-service/.*") ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+# #           echo "go-status=$([[ $(echo "$CHANGED_FILES" | grep -E "^cluster-status/.*") ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
+# #           echo "ts-ui=$([[ $(echo "$CHANGED_FILES" | grep -E "^cluster-ui/.*") ]] && echo "true" || echo "false")" >> $GITHUB_OUTPUT
 
-#   python-lint-api:
-#     needs: detect-changes
-#     if: needs.detect-changes.outputs.python-api == 'true'
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: actions/setup-python@v5
-#         with:
-#           python-version: '3.11'
-#           cache: 'pip'
-#       - name: Install Python linting tools
-#         working-directory: cluster-api
-#         run: |
-#           python -m pip install --upgrade pip
-#           pip install flake8 black isort pylint
-#       - name: Run Pylint
-#         working-directory: cluster-api
-#         run: |
-#           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
+# #   python-lint-api:
+# #     needs: detect-changes
+# #     if: needs.detect-changes.outputs.python-api == 'true'
+# #     runs-on: ubuntu-latest
+# #     steps:
+# #       - uses: actions/checkout@v4
+# #       - uses: actions/setup-python@v5
+# #         with:
+# #           python-version: '3.11'
+# #           cache: 'pip'
+# #       - name: Install Python linting tools
+# #         working-directory: cluster-api
+# #         run: |
+# #           python -m pip install --upgrade pip
+# #           pip install flake8 black isort pylint
+# #       - name: Run Pylint
+# #         working-directory: cluster-api
+# #         run: |
+# #           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
-#   python-lint-service:
-#     needs: detect-changes
-#     if: needs.detect-changes.outputs.python-service == 'true'
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: actions/setup-python@v5
-#         with:
-#           python-version: '3.11'
-#           cache: 'pip'
-#       - name: Install Python linting tools
-#         working-directory: cluster-service
-#         run: |
-#           python -m pip install --upgrade pip
-#           pip install flake8 black isort pylint
-#       - name: Run Pylint
-#         working-directory: cluster-service
-#         run: |
-#           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
+# #   python-lint-service:
+# #     needs: detect-changes
+# #     if: needs.detect-changes.outputs.python-service == 'true'
+# #     runs-on: ubuntu-latest
+# #     steps:
+# #       - uses: actions/checkout@v4
+# #       - uses: actions/setup-python@v5
+# #         with:
+# #           python-version: '3.11'
+# #           cache: 'pip'
+# #       - name: Install Python linting tools
+# #         working-directory: cluster-service
+# #         run: |
+# #           python -m pip install --upgrade pip
+# #           pip install flake8 black isort pylint
+# #       - name: Run Pylint
+# #         working-directory: cluster-service
+# #         run: |
+# #           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
-#   go-lint:
-#     needs: detect-changes
-#     if: needs.detect-changes.outputs.go-status == 'true'
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: actions/setup-go@v5
-#         with:
-#           go-version: '1.22'
-#           cache: true
-#       - name: Install Go tools
-#         run: |
-#           go install golang.org/x/tools/cmd/goimports@latest
-#           go install honnef.co/go/tools/cmd/staticcheck@latest
-#           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-#           echo "$HOME/go/bin" >> $GITHUB_PATH
-#       - name: Go Format Check
-#         working-directory: cluster-status
-#         run: |
-#           if [ -n "$(gofmt -l .)" ]; then
-#             echo "The following files need formatting:"
-#             gofmt -l .
-#             echo "Please run 'gofmt -w .' to format your code."
-#             exit 1
-#           fi
-#       - name: Go Imports Check
-#         working-directory: cluster-status
-#         run: |
-#           if [ -n "$(goimports -l .)" ]; then
-#             echo "The following files have incorrect imports:"
-#             goimports -l .
-#             echo "Please run 'goimports -w .' to fix imports."
-#             exit 1
-#           fi
-#       - name: Run golangci-lint
-#         working-directory: cluster-status
-#         run: golangci-lint run --timeout=5m
-#       - name: Run staticcheck
-#         working-directory: cluster-status
-#         run: staticcheck ./...
+# #   go-lint:
+# #     needs: detect-changes
+# #     if: needs.detect-changes.outputs.go-status == 'true'
+# #     runs-on: ubuntu-latest
+# #     steps:
+# #       - uses: actions/checkout@v4
+# #       - uses: actions/setup-go@v5
+# #         with:
+# #           go-version: '1.22'
+# #           cache: true
+# #       - name: Install Go tools
+# #         run: |
+# #           go install golang.org/x/tools/cmd/goimports@latest
+# #           go install honnef.co/go/tools/cmd/staticcheck@latest
+# #           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+# #           echo "$HOME/go/bin" >> $GITHUB_PATH
+# #       - name: Go Format Check
+# #         working-directory: cluster-status
+# #         run: |
+# #           if [ -n "$(gofmt -l .)" ]; then
+# #             echo "The following files need formatting:"
+# #             gofmt -l .
+# #             echo "Please run 'gofmt -w .' to format your code."
+# #             exit 1
+# #           fi
+# #       - name: Go Imports Check
+# #         working-directory: cluster-status
+# #         run: |
+# #           if [ -n "$(goimports -l .)" ]; then
+# #             echo "The following files have incorrect imports:"
+# #             goimports -l .
+# #             echo "Please run 'goimports -w .' to fix imports."
+# #             exit 1
+# #           fi
+# #       - name: Run golangci-lint
+# #         working-directory: cluster-status
+# #         run: golangci-lint run --timeout=5m
+# #       - name: Run staticcheck
+# #         working-directory: cluster-status
+# #         run: staticcheck ./...
 
-#   typescript-lint:
-#     needs: detect-changes
-#     if: needs.detect-changes.outputs.ts-ui == 'true'
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v4
-#       - uses: actions/setup-node@v4
-#         with:
-#           node-version: '20'
-#           cache: 'npm'
-#           cache-dependency-path: cluster-ui/package-lock.json
-#       - name: Install Node.js dependencies
-#         working-directory: cluster-ui
-#         run: |
-#           npm install -g eslint@^8.56.0 typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
-#           npm ci
-#       - name: Lint TypeScript
-#         working-directory: cluster-ui
-#         run: |
-#           npx tsc --noEmit
-#           npx eslint "**/*.{ts,tsx}" --fix
-#       - name: Lint JavaScript
-#         working-directory: cluster-ui
-#         run: npx eslint "**/*.{js,jsx}" --fix
+# #   typescript-lint:
+# #     needs: detect-changes
+# #     if: needs.detect-changes.outputs.ts-ui == 'true'
+# #     runs-on: ubuntu-latest
+# #     steps:
+# #       - uses: actions/checkout@v4
+# #       - uses: actions/setup-node@v4
+# #         with:
+# #           node-version: '20'
+# #           cache: 'npm'
+# #           cache-dependency-path: cluster-ui/package-lock.json
+# #       - name: Install Node.js dependencies
+# #         working-directory: cluster-ui
+# #         run: |
+# #           npm install -g eslint@^8.56.0 typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
+# #           npm ci
+# #       - name: Lint TypeScript
+# #         working-directory: cluster-ui
+# #         run: |
+# #           npx tsc --noEmit
+# #           npx eslint "**/*.{ts,tsx}" --fix
+# #       - name: Lint JavaScript
+# #         working-directory: cluster-ui
+# #         run: npx eslint "**/*.{js,jsx}" --fix
+
+
+
+name: Lint
+
+on:
+  pull_request:
+    branches:
+      - '**'
+    paths:
+      - 'cluster-api/**'
+      - 'cluster-service/**'
+      - 'cluster-status/**'
+      - 'cluster-ui/**'
+  push:
+    branches:
+      - '**'
+    paths:
+      - 'cluster-api/**'
+      - 'cluster-service/**'
+      - 'cluster-status/**'
+      - 'cluster-ui/**'
+
+jobs:
+  python-lint:
+    name: Python Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort
+          
+      - name: Lint cluster-api
+        if: contains(github.event.pull_request.base.sha, '') && contains(github.event.pull_request.head.sha, '')
+        run: |
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep "^cluster-api/")
+          if [ -n "$CHANGED_FILES" ]; then
+            cd cluster-api
+            flake8 .
+            black --check .
+            isort --check-only .
+          fi
+          
+      - name: Lint cluster-service
+        if: contains(github.event.pull_request.base.sha, '') && contains(github.event.pull_request.head.sha, '')
+        run: |
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep "^cluster-service/")
+          if [ -n "$CHANGED_FILES" ]; then
+            cd cluster-service
+            flake8 .
+            black --check .
+            isort --check-only .
+          fi
+
+  go-lint:
+    name: Go Lint
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.base.sha, '') && contains(github.event.pull_request.head.sha, '')
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.x'
+          
+      - name: Install golangci-lint
+        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+          
+      - name: Lint cluster-status
+        run: |
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep "^cluster-status/")
+          if [ -n "$CHANGED_FILES" ]; then
+            cd cluster-status
+            golangci-lint run ./...
+          fi
+
+  typescript-lint:
+    name: TypeScript Lint
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.base.sha, '') && contains(github.event.pull_request.head.sha, '')
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+          
+      - name: Install dependencies
+        run: |
+          cd cluster-ui
+          npm install
+          
+      - name: Lint cluster-ui
+        run: |
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep "^cluster-ui/")
+          if [ -n "$CHANGED_FILES" ]; then
+            cd cluster-ui
+            npm run lint
+          fi
