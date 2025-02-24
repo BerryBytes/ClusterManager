@@ -21,129 +21,104 @@ jobs:
   changed_files:
     runs-on: ubuntu-latest
     outputs:
-      python_api_files: ${{ steps.filter-python-api.outputs.all_changed_files }}
-      python_service_files: ${{ steps.filter-python-service.outputs.all_changed_files }}
-      go_files: ${{ steps.filter-go.outputs.all_changed_files }}
-      typescript_files: ${{ steps.filter-ts.outputs.all_changed_files }}
+      python_api: ${{ steps.changes.outputs.cluster-api }}
+      python_service: ${{ steps.changes.outputs.cluster-service }}
+      go: ${{ steps.changes.outputs.cluster-status }}
+      typescript: ${{ steps.changes.outputs.cluster-ui }}
     steps:
       - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
         with:
-          fetch-depth: 0  # Fetch all history for all branches and tags
-      
-      - name: Get changed files in cluster-api
-        id: filter-python-api
-        uses: tj-actions/changed-files@v41
-        with:
-          files: |
-            cluster-api/**/*.py
-            cluster-api/*.py
-      
-      - name: Debug changed files
-        run: |
-          echo "Python API files: ${{ steps.filter-python-api.outputs.all_changed_files }}"
-          echo "Python API any_changed: ${{ steps.filter-python-api.outputs.any_changed }}"
-          
-      - name: Get changed files in cluster-service
-        id: filter-python-service
-        uses: tj-actions/changed-files@v41
-        with:
-          files: |
-            cluster-service/**/*.py
-            cluster-service/*.py
-          
-      - name: Get changed files in cluster-status
-        id: filter-go
-        uses: tj-actions/changed-files@v41
-        with:
-          files: |
-            cluster-status/**/*.go
-            cluster-status/*.go
-            
-      - name: Get changed files in cluster-ui
-        id: filter-ts
-        uses: tj-actions/changed-files@v41
-        with:
-          files: |
-            cluster-ui/**/*.ts
-            cluster-ui/**/*.tsx
-            cluster-ui/**/*.js
-            cluster-ui/**/*.jsx
-            cluster-ui/*.ts
-            cluster-ui/*.tsx
-            cluster-ui/*.js
-            cluster-ui/*.jsx
+          filters: |
+            cluster-api:
+              - 'cluster-api/**'
+            cluster-service:
+              - 'cluster-service/**'
+            cluster-status:
+              - 'cluster-status/**'
+            cluster-ui:
+              - 'cluster-ui/**'
 
   cluster-api-lint:
     needs: changed_files
-    if: needs.changed_files.outputs.python_api_files != ''
+    if: needs.changed_files.outputs.python_api == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug job condition
+      - name: Check for Python files
+        id: check-python
         run: |
-          echo "Python API files: ${{ needs.changed_files.outputs.python_api_files }}"
-          
+          if find cluster-api -name "*.py" -print -quit | grep -q .; then
+            echo "has_python_files=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_python_files=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Python
+        if: steps.check-python.outputs.has_python_files == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
       
       - name: Install Python linting tools
+        if: steps.check-python.outputs.has_python_files == 'true'
         working-directory: cluster-api
         run: |
           python -m pip install --upgrade pip
           pip install flake8 black isort pylint
 
-      - name: Run Pylint on changed files
+      - name: Run Pylint
+        if: steps.check-python.outputs.has_python_files == 'true'
         working-directory: cluster-api
         run: |
-          echo "Files to lint:"
-          echo "${{ needs.changed_files.outputs.python_api_files }}" | tr ' ' '\n'
-          echo "${{ needs.changed_files.outputs.python_api_files }}" | tr ' ' '\n' | xargs pylint || echo "Linting completed with warnings"
+          find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
   cluster-service-lint:
     needs: changed_files
-    if: needs.changed_files.outputs.python_service_files != ''
+    if: needs.changed_files.outputs.python_service == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug job condition
+      - name: Check for Python files
+        id: check-python
         run: |
-          echo "Python Service files: ${{ needs.changed_files.outputs.python_service_files }}"
-          
+          if find cluster-service -name "*.py" -print -quit | grep -q .; then
+            echo "has_python_files=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_python_files=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Python
+        if: steps.check-python.outputs.has_python_files == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
       
       - name: Install Python linting tools
+        if: steps.check-python.outputs.has_python_files == 'true'
         working-directory: cluster-service
         run: |
           python -m pip install --upgrade pip
           pip install flake8 black isort pylint
 
-      - name: Run Pylint on changed files
+      - name: Run Pylint
+        if: steps.check-python.outputs.has_python_files == 'true'
         working-directory: cluster-service
         run: |
-          echo "Files to lint:"
-          echo "${{ needs.changed_files.outputs.python_service_files }}" | tr ' ' '\n'
-          echo "${{ needs.changed_files.outputs.python_service_files }}" | tr ' ' '\n' | xargs pylint || echo "Linting completed with warnings"
+          find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
   cluster-status-lint:
     needs: changed_files
-    if: needs.changed_files.outputs.go_files != ''
+    if: needs.changed_files.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
-      - name: Debug job condition
-        run: |
-          echo "Go files: ${{ needs.changed_files.outputs.go_files }}"
-          
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -160,42 +135,38 @@ jobs:
       - name: Go Format Check
         working-directory: cluster-status
         run: |
-          echo "Files to format:"
-          echo "${{ needs.changed_files.outputs.go_files }}" | tr ' ' '\n'
-          echo "${{ needs.changed_files.outputs.go_files }}" | tr ' ' '\n' | xargs gofmt -l 
-          if [ $? -ne 0 ]; then
-            echo "Please run 'gofmt -w' on the files listed above"
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "The following files need formatting:"
+            gofmt -l .
+            echo "Please run 'gofmt -w .' to format your code."
             exit 1
           fi
 
       - name: Go Imports Check
         working-directory: cluster-status
         run: |
-          echo "${{ needs.changed_files.outputs.go_files }}" | tr ' ' '\n' | xargs goimports -l
-          if [ $? -ne 0 ]; then
-            echo "Please run 'goimports -w' on the files listed above"
+          if [ -n "$(goimports -l .)" ]; then
+            echo "The following files have incorrect imports:"
+            goimports -l .
+            echo "Please run 'goimports -w .' to fix imports."
             exit 1
           fi
 
       - name: Run golangci-lint
         working-directory: cluster-status
-        run: golangci-lint run ${{ needs.changed_files.outputs.go_files }}
+        run: golangci-lint run --timeout=5m
 
       - name: Run staticcheck
         working-directory: cluster-status
-        run: echo "${{ needs.changed_files.outputs.go_files }}" | tr ' ' '\n' | xargs staticcheck
+        run: staticcheck ./...
 
   cluster-ui-lint:
     needs: changed_files
-    if: needs.changed_files.outputs.typescript_files != ''
+    if: needs.changed_files.outputs.typescript == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
-      - name: Debug job condition
-        run: |
-          echo "TypeScript/JavaScript files: ${{ needs.changed_files.outputs.typescript_files }}"
-          
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -209,13 +180,15 @@ jobs:
           npm install -g eslint@^8.56.0 typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
           npm ci
 
-      - name: Lint TypeScript/JavaScript files
+      - name: Lint TypeScript
         working-directory: cluster-ui
         run: |
           npx tsc --noEmit
-          echo "Files to lint:"
-          echo "${{ needs.changed_files.outputs.typescript_files }}" | tr ' ' '\n'
-          echo "${{ needs.changed_files.outputs.typescript_files }}" | tr ' ' '\n' | xargs npx eslint --fix
+          npx eslint "**/*.{ts,tsx}" --fix
+
+      - name: Lint JavaScript
+        working-directory: cluster-ui
+        run: npx eslint "**/*.{js,jsx}" --fix
 
 
 
