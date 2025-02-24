@@ -40,7 +40,7 @@ jobs:
             cluster-ui:
               - 'cluster-ui/**'
 
-  python-api-lint:
+  cluster-api-lint:
     needs: changed_files
     if: |
       github.event_name == 'workflow_dispatch' ||
@@ -78,7 +78,7 @@ jobs:
         run: |
           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
-  python-service-lint:
+  cluster-service-lint:
     needs: changed_files
     if: |
       github.event_name == 'workflow_dispatch' ||
@@ -116,7 +116,7 @@ jobs:
         run: |
           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
-  go-lint:
+  cluster-status-lint:
     needs: changed_files
     if: |
       github.event_name == 'workflow_dispatch' ||
@@ -166,7 +166,7 @@ jobs:
         working-directory: cluster-status
         run: staticcheck ./...
 
-  typescript-lint:
+  cluster-ui-lint:
     needs: changed_files
     if: |
       github.event_name == 'workflow_dispatch' ||
