@@ -42,9 +42,7 @@ jobs:
 
   cluster-api-lint:
     needs: changed_files
-    if: |
-      needs.changed_files.outputs.python_api == 'true' ||
-      github.event_name == 'workflow_dispatch'
+    if: needs.changed_files.outputs.python_api == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -80,9 +78,7 @@ jobs:
 
   cluster-service-lint:
     needs: changed_files
-    if: |
-      needs.changed_files.outputs.python_service == 'true' ||
-      github.event_name == 'workflow_dispatch'
+    if: needs.changed_files.outputs.python_service == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -118,9 +114,7 @@ jobs:
 
   cluster-status-lint:
     needs: changed_files
-    if: |
-      needs.changed_files.outputs.go == 'true' ||
-      github.event_name == 'workflow_dispatch'
+    if: needs.changed_files.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -168,9 +162,7 @@ jobs:
 
   cluster-ui-lint:
     needs: changed_files
-    if: |
-      needs.changed_files.outputs.typescript == 'true' ||
-      github.event_name == 'workflow_dispatch'
+    if: needs.changed_files.outputs.typescript == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -197,7 +189,6 @@ jobs:
       - name: Lint JavaScript
         working-directory: cluster-ui
         run: npx eslint "**/*.{js,jsx}" --fix
-
 
 
 
