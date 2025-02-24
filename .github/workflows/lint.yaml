@@ -40,53 +40,79 @@ jobs:
             cluster-ui:
               - 'cluster-ui/**'
 
-  python-lint:
+  python-api-lint:
     needs: changed_files
     if: |
       github.event_name == 'workflow_dispatch' ||
-      needs.changed_files.outputs.python_api == 'true' ||
-      needs.changed_files.outputs.python_service == 'true'
+      needs.changed_files.outputs.python_api == 'true'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        directory: [cluster-api, cluster-service]
-        include:
-          - directory: cluster-api
-            should_run: ${{ needs.changed_files.outputs.python_api == 'true' || github.event_name == 'workflow_dispatch' }}
-          - directory: cluster-service
-            should_run: ${{ needs.changed_files.outputs.python_service == 'true' || github.event_name == 'workflow_dispatch' }}
-    
     steps:
       - uses: actions/checkout@v4
 
       - name: Check for Python files
         id: check-python
-        if: matrix.should_run
         run: |
-          if find ${{ matrix.directory }} -name "*.py" -print -quit | grep -q .; then
+          if find cluster-api -name "*.py" -print -quit | grep -q .; then
             echo "has_python_files=true" >> $GITHUB_OUTPUT
           else
             echo "has_python_files=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up Python
-        if: matrix.should_run && steps.check-python.outputs.has_python_files == 'true'
+        if: steps.check-python.outputs.has_python_files == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
       
       - name: Install Python linting tools
-        if: matrix.should_run && steps.check-python.outputs.has_python_files == 'true'
-        working-directory: ${{ matrix.directory }}
+        if: steps.check-python.outputs.has_python_files == 'true'
+        working-directory: cluster-api
         run: |
           python -m pip install --upgrade pip
           pip install flake8 black isort pylint
 
       - name: Run Pylint
-        if: matrix.should_run && steps.check-python.outputs.has_python_files == 'true'
-        working-directory: ${{ matrix.directory }}
+        if: steps.check-python.outputs.has_python_files == 'true'
+        working-directory: cluster-api
+        run: |
+          find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
+
+  python-service-lint:
+    needs: changed_files
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changed_files.outputs.python_service == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for Python files
+        id: check-python
+        run: |
+          if find cluster-service -name "*.py" -print -quit | grep -q .; then
+            echo "has_python_files=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_python_files=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Python
+        if: steps.check-python.outputs.has_python_files == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Python linting tools
+        if: steps.check-python.outputs.has_python_files == 'true'
+        working-directory: cluster-service
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort pylint
+
+      - name: Run Pylint
+        if: steps.check-python.outputs.has_python_files == 'true'
+        working-directory: cluster-service
         run: |
           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
 
