@@ -27,18 +27,46 @@ jobs:
       typescript: ${{ steps.changes.outputs.cluster-ui }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: changes
         with:
-          filters: |
-            cluster-api:
-              - 'cluster-api/**'
-            cluster-service:
-              - 'cluster-service/**'
-            cluster-status:
-              - 'cluster-status/**'
-            cluster-ui:
-              - 'cluster-ui/**'
+          fetch-depth: 0
+      
+      - name: Get changed files by directory
+        id: changes
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_SHA=${{ github.event.pull_request.base.sha }}
+            HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          else
+            BASE_SHA=$(git rev-parse HEAD^)
+            HEAD_SHA=$(git rev-parse HEAD)
+          fi
+          
+          echo "Checking changes between $BASE_SHA and $HEAD_SHA"
+          
+          # Check each directory separately
+          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -q "^cluster-api/"; then
+            echo "cluster-api=true" >> $GITHUB_OUTPUT
+          else
+            echo "cluster-api=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -q "^cluster-service/"; then
+            echo "cluster-service=true" >> $GITHUB_OUTPUT
+          else
+            echo "cluster-service=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -q "^cluster-status/"; then
+            echo "cluster-status=true" >> $GITHUB_OUTPUT
+          else
+            echo "cluster-status=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -q "^cluster-ui/"; then
+            echo "cluster-ui=true" >> $GITHUB_OUTPUT
+          else
+            echo "cluster-ui=false" >> $GITHUB_OUTPUT
+          fi
 
   cluster-api-lint:
     needs: changed_files
@@ -188,7 +216,7 @@ jobs:
 
       - name: Lint JavaScript
         working-directory: cluster-ui
-        run: npx eslint "**/*.{js,jsx}" --fix   
+        run: npx eslint "**/*.{js,jsx}" --fix  
 
 
 
