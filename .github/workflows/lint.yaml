@@ -188,7 +188,7 @@ jobs:
 
       - name: Lint JavaScript
         working-directory: cluster-ui
-        run: npx eslint "**/*.{js,jsx}" --fix
+        run: npx eslint "**/*.{js,jsx}" --fix   
 
 
 
