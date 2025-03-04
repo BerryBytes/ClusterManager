@@ -327,6 +327,11 @@ jobs:
         run: |
           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
       
+  docker-build-push:
+    runs-on: ubuntu-latest
+    needs: cluster-api-lint
+    steps:
+      - uses: actions/checkout@v4
       - name: Docker Build and Push
         if: github.event_name != 'pull_request'
         working-directory: cluster-api
