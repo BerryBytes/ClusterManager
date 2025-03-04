@@ -350,7 +350,7 @@ jobs:
           report-format: sarif
           report-path: gitleaks-report.sarif
       
-  docker-build-push:
+  cluster-api-build:
     runs-on: ubuntu-latest
     needs: gitleaks-cluster-api
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
@@ -439,10 +439,10 @@ jobs:
           report-format: sarif
           report-path: gitleaks-report.sarif
 
-  cluster-service-docker-build-push:
+  cluster-service-build:
     runs-on: ubuntu-latest
     needs: gitleaks-cluster-service
-    # if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v4
       - name: Docker Build and Push
@@ -465,6 +465,108 @@ jobs:
           echo "Pushing Docker image"
           docker push ${{secrets.CLUSTER_SERVICE_REGISTRY_URL}}:${{ github.sha }}
           docker push ${{secrets.CLUSTER_SERVICE_REGISTRY_URL}}:latest
+          
+          echo "Clean up"
+          if [ -f .id_rsa ]; then rm .id_rsa; fi
+
+  cluster-status-lint:
+    needs: changed_files
+    if: needs.changed_files.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Install Go tools
+        run: |
+          go install golang.org/x/tools/cmd/goimports@latest
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - name: Go Format Check
+        working-directory: cluster-status
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "The following files need formatting:"
+            gofmt -l .
+            echo "Please run 'gofmt -w .' to format your code."
+            exit 1
+          fi
+
+      - name: Go Imports Check
+        working-directory: cluster-status
+        run: |
+          if [ -n "$(goimports -l .)" ]; then
+            echo "The following files have incorrect imports:"
+            goimports -l .
+            echo "Please run 'goimports -w .' to fix imports."
+            exit 1
+          fi
+
+      - name: Run golangci-lint
+        working-directory: cluster-status
+        run: golangci-lint run --timeout=5m
+
+      - name: Run staticcheck
+        working-directory: cluster-status
+        run: staticcheck ./...
+
+  gitleaks-cluster-status:
+    name: GitLeaks Security Scan
+    runs-on: ubuntu-latest
+    needs: cluster-service-lint
+    permissions:
+      security-events: write  
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  
+
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          config-path: .gitleaks.toml  
+          enable-upload-artifact: true
+          report-format: sarif
+          report-path: gitleaks-report.sarif
+
+  cluster-status-build:
+    runs-on: ubuntu-latest
+    needs: gitleaks-cluster-service
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker Build and Push
+        if: github.event_name != 'pull_request'
+        working-directory: cluster-api
+        env:
+            CLUSTER_STATUS_REGISTRY_URL: ${{secrets.CLUSTER_STATUS_REGISTRY_URL}}
+            CLUSTER_STATUS_REGISTRY_USER: ${{secrets.CLUSTER_STATUS_REGISTRY_USER}}
+            CLUSTER_STATUS_REGISTRY_PASSWORD: ${{secrets.CLUSTER_STATUS_REGISTRY_PASSWORD}}
+            
+        run: |
+          echo "Docker login to $REGISTRY_HOST"
+          
+
+          docker login -u ${{secrets.CLUSTER_STATUS_REGISTRY_USER}} -p "${{secrets.CLUSTER_STATUS_REGISTRY_PASSWORD}}"
+          
+          echo "Building Docker image"
+          docker build . -t ${{secrets.CLUSTER_STATUS_REGISTRY_URL}}:${{ github.sha }} -t ${{secrets.CLUSTER_STATUS_REGISTRY_URL}}:latest
+          
+          echo "Pushing Docker image"
+          docker push ${{secrets.CLUSTER_STATUS_REGISTRY_URL}}:${{ github.sha }}
+          docker push ${{secrets.CLUSTER_STATUS_REGISTRY_URL}}:latest
           
           echo "Clean up"
           if [ -f .id_rsa ]; then rm .id_rsa; fi
