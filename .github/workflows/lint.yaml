@@ -1,0 +1,363 @@
+# name: Multi-language Lint
+
+# on:
+#   push:
+#     paths:
+#       - 'cluster-api/**'
+#       - 'cluster-service/**'
+#       - 'cluster-status/**'
+#       - 'cluster-ui/**'
+#     branches:
+#       - '**'  
+#   pull_request:
+#     paths:
+#       - 'cluster-api/**'
+#       - 'cluster-service/**'
+#       - 'cluster-status/**'
+#       - 'cluster-ui/**'
+#   workflow_dispatch:
+
+# jobs:
+#   changed_files:
+#     runs-on: ubuntu-latest
+#     outputs:
+#       python_api: ${{ steps.changes.outputs.cluster-api }}
+#       python_service: ${{ steps.changes.outputs.cluster-service }}
+#       go: ${{ steps.changes.outputs.cluster-status }}
+#       typescript: ${{ steps.changes.outputs.cluster-ui }}
+#     steps:
+#       - uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0
+      
+#       - name: Get changed files by directory
+#         id: changes
+#         run: |
+#           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+#             BASE_SHA=${{ github.event.pull_request.base.sha }}
+#             HEAD_SHA=${{ github.event.pull_request.head.sha }}
+#           else
+#             BASE_SHA=$(git rev-parse HEAD^)
+#             HEAD_SHA=$(git rev-parse HEAD)
+#           fi
+          
+#           echo "Checking changes between $BASE_SHA and $HEAD_SHA"
+          
+#           # Check each directory separately
+#           if git diff --name-only $BASE_SHA $HEAD_SHA | grep -q "^cluster-api/"; then
+#             echo "cluster-api=true" >> $GITHUB_OUTPUT
+#           else
+#             echo "cluster-api=false" >> $GITHUB_OUTPUT
+#           fi
+          
+#           if git diff --name-only $BASE_SHA $HEAD_SHA | grep -q "^cluster-service/"; then
+#             echo "cluster-service=true" >> $GITHUB_OUTPUT
+#           else
+#             echo "cluster-service=false" >> $GITHUB_OUTPUT
+#           fi
+          
+#           if git diff --name-only $BASE_SHA $HEAD_SHA | grep -q "^cluster-status/"; then
+#             echo "cluster-status=true" >> $GITHUB_OUTPUT
+#           else
+#             echo "cluster-status=false" >> $GITHUB_OUTPUT
+#           fi
+          
+#           if git diff --name-only $BASE_SHA $HEAD_SHA | grep -q "^cluster-ui/"; then
+#             echo "cluster-ui=true" >> $GITHUB_OUTPUT
+#           else
+#             echo "cluster-ui=false" >> $GITHUB_OUTPUT
+#           fi
+
+#   cluster-api-lint:
+#     needs: changed_files
+#     if: needs.changed_files.outputs.python_api == 'true'
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - name: Check for Python files
+#         id: check-python
+#         run: |
+#           if find cluster-api -name "*.py" -print -quit | grep -q .; then
+#             echo "has_python_files=true" >> $GITHUB_OUTPUT
+#           else
+#             echo "has_python_files=false" >> $GITHUB_OUTPUT
+#           fi
+
+#       - name: Set up Python
+#         if: steps.check-python.outputs.has_python_files == 'true'
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.11'
+#           cache: 'pip'
+      
+#       - name: Install Python linting tools
+#         if: steps.check-python.outputs.has_python_files == 'true'
+#         working-directory: cluster-api
+#         run: |
+#           python -m pip install --upgrade pip
+#           pip install flake8 black isort pylint
+
+#       - name: Run Pylint
+#         if: steps.check-python.outputs.has_python_files == 'true'
+#         working-directory: cluster-api
+#         run: |
+#           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
+
+#   cluster-service-lint:
+#     needs: changed_files
+#     if: needs.changed_files.outputs.python_service == 'true'
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - name: Check for Python files
+#         id: check-python
+#         run: |
+#           if find cluster-service -name "*.py" -print -quit | grep -q .; then
+#             echo "has_python_files=true" >> $GITHUB_OUTPUT
+#           else
+#             echo "has_python_files=false" >> $GITHUB_OUTPUT
+#           fi
+
+#       - name: Set up Python
+#         if: steps.check-python.outputs.has_python_files == 'true'
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.11'
+#           cache: 'pip'
+      
+#       - name: Install Python linting tools
+#         if: steps.check-python.outputs.has_python_files == 'true'
+#         working-directory: cluster-service
+#         run: |
+#           python -m pip install --upgrade pip
+#           pip install flake8 black isort pylint
+
+#       - name: Run Pylint
+#         if: steps.check-python.outputs.has_python_files == 'true'
+#         working-directory: cluster-service
+#         run: |
+#           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
+
+#   cluster-status-lint:
+#     needs: changed_files
+#     if: needs.changed_files.outputs.go == 'true'
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+      
+#       - name: Set up Go
+#         uses: actions/setup-go@v5
+#         with:
+#           go-version: '1.22'
+#           cache: true
+
+#       - name: Install Go tools
+#         run: |
+#           go install golang.org/x/tools/cmd/goimports@latest
+#           go install honnef.co/go/tools/cmd/staticcheck@latest
+#           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+#           echo "$HOME/go/bin" >> $GITHUB_PATH
+
+#       - name: Go Format Check
+#         working-directory: cluster-status
+#         run: |
+#           if [ -n "$(gofmt -l .)" ]; then
+#             echo "The following files need formatting:"
+#             gofmt -l .
+#             echo "Please run 'gofmt -w .' to format your code."
+#             exit 1
+#           fi
+
+#       - name: Go Imports Check
+#         working-directory: cluster-status
+#         run: |
+#           if [ -n "$(goimports -l .)" ]; then
+#             echo "The following files have incorrect imports:"
+#             goimports -l .
+#             echo "Please run 'goimports -w .' to fix imports."
+#             exit 1
+#           fi
+
+#       - name: Run golangci-lint
+#         working-directory: cluster-status
+#         run: golangci-lint run --timeout=5m
+
+#       - name: Run staticcheck
+#         working-directory: cluster-status
+#         run: staticcheck ./...
+
+#   cluster-ui-lint:
+#     needs: changed_files
+#     if: needs.changed_files.outputs.typescript == 'true'
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+      
+#       - name: Set up Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
+#           cache: 'npm'
+#           cache-dependency-path: cluster-ui/package-lock.json
+
+#       - name: Install Node.js dependencies
+#         working-directory: cluster-ui
+#         run: |
+#           npm install -g eslint@^8.56.0 typescript @typescript-eslint/parser @typescript-eslint/eslint-plugin
+#           npm ci
+
+#       - name: Lint TypeScript
+#         working-directory: cluster-ui
+#         run: |
+#           npx tsc --noEmit
+#           npx eslint "**/*.{ts,tsx}" --fix
+
+#       - name: Lint JavaScript
+#         working-directory: cluster-ui
+#         run: npx eslint "**/*.{js,jsx}" --fix
+
+
+
+name: Multi-language Lint
+
+on:
+  push:
+    paths:
+      - 'cluster-api/**'
+      - 'cluster-service/**'
+      - 'cluster-status/**'
+      - 'cluster-ui/**'
+    branches:
+      - '**'  
+  pull_request:
+    paths:
+      - 'cluster-api/**'
+      - 'cluster-service/**'
+      - 'cluster-status/**'
+      - 'cluster-ui/**'
+  workflow_dispatch:
+
+
+
+jobs:
+  changed_files:
+    runs-on: ubuntu-latest
+    outputs:
+      python_api: ${{ steps.changes.outputs.cluster-api }}
+      python_service: ${{ steps.changes.outputs.cluster-service }}
+      go: ${{ steps.changes.outputs.cluster-status }}
+      typescript: ${{ steps.changes.outputs.cluster-ui }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get changed files by directory
+        id: changes
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE_SHA=${{ github.event.pull_request.base.sha }}
+            HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          else
+            BASE_SHA=$(git rev-parse HEAD^)
+            HEAD_SHA=$(git rev-parse HEAD)
+          fi
+          
+          echo "Checking changes between $BASE_SHA and $HEAD_SHA"
+          
+          # Check each directory separately
+          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -q "^cluster-api/"; then
+            echo "cluster-api=true" >> $GITHUB_OUTPUT
+          else
+            echo "cluster-api=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -q "^cluster-service/"; then
+            echo "cluster-service=true" >> $GITHUB_OUTPUT
+          else
+            echo "cluster-service=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -q "^cluster-status/"; then
+            echo "cluster-status=true" >> $GITHUB_OUTPUT
+          else
+            echo "cluster-status=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if git diff --name-only $BASE_SHA $HEAD_SHA | grep -q "^cluster-ui/"; then
+            echo "cluster-ui=true" >> $GITHUB_OUTPUT
+          else
+            echo "cluster-ui=false" >> $GITHUB_OUTPUT
+          fi
+
+  cluster-api-lint:
+    needs: changed_files
+    if: needs.changed_files.outputs.python_api == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for Python files
+        id: check-python
+        run: |
+          if find cluster-api -name "*.py" -print -quit | grep -q .; then
+            echo "has_python_files=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_python_files=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Python
+        if: steps.check-python.outputs.has_python_files == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Python linting tools
+        if: steps.check-python.outputs.has_python_files == 'true'
+        working-directory: cluster-api
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort pylint
+
+      - name: Run Pylint
+        if: steps.check-python.outputs.has_python_files == 'true'
+        working-directory: cluster-api
+        run: |
+          find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
+      
+      - name: Docker Build and Push
+        if: github.event_name != 'pull_request'
+        working-directory: cluster-api
+        run: |
+          echo "Docker login to $REGISTRY_HOST"
+          echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USER" --password-stdin "$REGISTRY_HOST"
+          
+          echo "Preparing build environment"
+          touch .env
+          
+          # Only create SSH key if ACCESS_TOKEN is provided
+          if [ -n "$ACCESS_TOKEN" ]; then
+            echo "$ACCESS_TOKEN" > .id_rsa
+            chmod 400 .id_rsa
+            eval `ssh-agent`
+            ssh-add .id_rsa
+            DOCKER_BUILD_ARGS="--ssh default"
+          else
+            DOCKER_BUILD_ARGS=""
+          fi
+          
+          echo "Building Docker image"
+          export DOCKER_BUILDKIT=1
+          docker build . ${DOCKER_BUILD_ARGS} -t "$REGISTRY_URL/cluster-api:${{ github.sha }}" -t "$REGISTRY_URL/cluster-api:latest"
+          
+          echo "Pushing Docker image"
+          docker push "$REGISTRY_URL/cluster-api:${{ github.sha }}"
+          docker push "$REGISTRY_URL/cluster-api:latest"
+          
+          echo "Clean up"
+          if [ -f .id_rsa ]; then rm .id_rsa; fi
+
+ 
