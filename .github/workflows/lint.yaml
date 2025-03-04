@@ -326,6 +326,28 @@ jobs:
         working-directory: cluster-api
         run: |
           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
+  gitleaks:
+    name: GitLeaks Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write  
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  
+
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          config-path: .gitleaks.toml  
+          enable-upload-artifact: true
+          report-format: sarif
+          report-path: gitleaks-report.sarif
       
   docker-build-push:
     runs-on: ubuntu-latest
