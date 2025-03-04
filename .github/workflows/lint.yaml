@@ -334,27 +334,12 @@ jobs:
           echo "Docker login to $REGISTRY_HOST"
           docker login -u 199012118961 -p 29Qport@LDN48 
           
-          echo "Preparing build environment"
-          touch .env
-          
-          # Only create SSH key if ACCESS_TOKEN is provided
-          if [ -n "$ACCESS_TOKEN" ]; then
-            echo "$ACCESS_TOKEN" > .id_rsa
-            chmod 400 .id_rsa
-            eval `ssh-agent`
-            ssh-add .id_rsa
-            DOCKER_BUILD_ARGS="--ssh default"
-          else
-            DOCKER_BUILD_ARGS=""
-          fi
-          
           echo "Building Docker image"
-          export DOCKER_BUILDKIT=1
-          docker build . ${DOCKER_BUILD_ARGS} -t "$REGISTRY_URL/cluster-api:${{ github.sha }}" -t "$REGISTRY_URL/cluster-api:latest"
+          docker build . 199012118961/cluster-api:${{ github.sha }} -t 199012118961/cluster-api:latest
           
           echo "Pushing Docker image"
-          docker push "$REGISTRY_URL/cluster-api:${{ github.sha }}"
-          docker push "$REGISTRY_URL/cluster-api:latest"
+          docker push 199012118961/cluster-api:${{ github.sha }}
+          docker push 199012118961/cluster-api:latest
           
           echo "Clean up"
           if [ -f .id_rsa ]; then rm .id_rsa; fi
