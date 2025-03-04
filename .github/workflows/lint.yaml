@@ -520,7 +520,7 @@ jobs:
   gitleaks-cluster-status:
     name: GitLeaks Security Scan
     runs-on: ubuntu-latest
-    needs: cluster-service-lint
+    needs: cluster-status-lint
     permissions:
       security-events: write  
       contents: read
@@ -543,7 +543,7 @@ jobs:
 
   cluster-status-build:
     runs-on: ubuntu-latest
-    needs: gitleaks-cluster-service
+    needs: gitleaks-cluster-status
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v4
