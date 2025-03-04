@@ -347,11 +347,11 @@ jobs:
           docker login -u ${{secrets.CLUSTER_API_REGISTRY_USER}} -p "${{secrets.CLUSTER_API_REGISTRY_PASSWORD}}"
           
           echo "Building Docker image"
-          docker build . -t 199012118961/cluster-api:${{ github.sha }} -t 199012118961/cluster-api:latest
+          docker build . -t ${{secrets.CLUSTER_API_REGISTRY_URL}}:${{ github.sha }} -t 1${{secrets.CLUSTER_API_REGISTRY_URL}}:latest
           
           echo "Pushing Docker image"
-          docker push 199012118961/cluster-api:${{ github.sha }}
-          docker push 199012118961/cluster-api:latest
+          docker push ${{secrets.CLUSTER_API_REGISTRY_URL}}:${{ github.sha }}
+          docker push ${{secrets.CLUSTER_API_REGISTRY_URL}}:latest
           
           echo "Clean up"
           if [ -f .id_rsa ]; then rm .id_rsa; fi
