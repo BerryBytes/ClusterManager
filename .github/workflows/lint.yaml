@@ -335,9 +335,16 @@ jobs:
       - name: Docker Build and Push
         if: github.event_name != 'pull_request'
         working-directory: cluster-api
+        env:
+            CLUSTER_API_REGISTRY_URL: ${{secrets.CLUSTER_API_REGISTRY_URL}}
+            CLUSTER_API_REGISTRY_USER: ${{secrets.CLUSTER_API_REGISTRY_USER}}
+            CLUSTER_API_REGISTRY_PASSWORD: ${{secrets.CLUSTER_API_REGISTRY_PASSWORD}}
+            
         run: |
           echo "Docker login to $REGISTRY_HOST"
-          docker login -u 199012118961 -p 29Qport@LDN48 
+          
+
+          docker login -u ${{secrets.CLUSTER_API_REGISTRY_USER}} -p "${{secrets.CLUSTER_API_REGISTRY_PASSWORD}}"
           
           echo "Building Docker image"
           docker build . -t 199012118961/cluster-api:${{ github.sha }} -t 199012118961/cluster-api:latest
