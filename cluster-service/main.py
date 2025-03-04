@@ -14,4 +14,4 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     logging.info("Starting the Flask application...")
     # Run the app
-    app.run(port=8082, host="0.0.0.0")
+    app.run(port=8082, host="0.0.0.0")  
