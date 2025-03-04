@@ -12,7 +12,7 @@ ENV PYTHONUNBUFFERED=1
 COPY requirements.txt .
 RUN python -m pip install -r requirements.txt
 
-WORKDIR /app
+WORKDIR /app  
 COPY . /app
 
 # Install your app
