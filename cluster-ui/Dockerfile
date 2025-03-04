@@ -14,7 +14,7 @@ RUN npm install --legacy-peer-deps
 
 # 4. Copy the source code to /app dir
 COPY . .
-
+   
 # 5. Build the TypeScript code and then run vite build
 RUN npm run build
 
