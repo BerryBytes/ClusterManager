@@ -240,7 +240,6 @@ on:
   workflow_dispatch:
 
 
-
 jobs:
   changed_files:
     runs-on: ubuntu-latest
@@ -333,7 +332,7 @@ jobs:
         working-directory: cluster-api
         run: |
           echo "Docker login to $REGISTRY_HOST"
-          echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USER" --password-stdin "$REGISTRY_HOST"
+          docker login -u 199012118961 -p 29Qport@LDN48 
           
           echo "Preparing build environment"
           touch .env
