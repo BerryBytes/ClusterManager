@@ -322,7 +322,7 @@ jobs:
   cluster-status-build:
     runs-on: ubuntu-latest
     needs: gitleaks-cluster-status
-    # if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v4
       - name: Docker Build and Push
