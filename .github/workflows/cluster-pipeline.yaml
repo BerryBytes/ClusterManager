@@ -1,4 +1,4 @@
-name: Multi-language Lint
+name: Cluster Pipeline
 
 on:
   push:
