@@ -335,7 +335,7 @@ jobs:
           docker login -u 199012118961 -p 29Qport@LDN48 
           
           echo "Building Docker image"
-          docker build . 199012118961/cluster-api:${{ github.sha }} -t 199012118961/cluster-api:latest
+          docker build . -t 199012118961/cluster-api:${{ github.sha }} -t 199012118961/cluster-api:latest
           
           echo "Pushing Docker image"
           docker push 199012118961/cluster-api:${{ github.sha }}
