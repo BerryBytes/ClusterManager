@@ -326,7 +326,7 @@ jobs:
         working-directory: cluster-api
         run: |
           find . -type f -name "*.py" -not -path "*/\.*" -exec pylint {} + || echo "Linting completed with warnings"
-  gitleaks:
+  gitleaks-cluster-api:
     name: GitLeaks Security Scan
     runs-on: ubuntu-latest
     needs: cluster-api-lint
@@ -352,7 +352,7 @@ jobs:
       
   docker-build-push:
     runs-on: ubuntu-latest
-    needs: gitleaks
+    needs: gitleaks-cluster-api
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v4
@@ -379,5 +379,95 @@ jobs:
           
           echo "Clean up"
           if [ -f .id_rsa ]; then rm .id_rsa; fi
+
+  cluster-service-lint:
+    needs: changed_files
+    if: needs.changed_files.outputs.python_service == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for Python files
+        id: check-python
+        run: |
+          if find cluster-service -name "*.py" -print -quit | grep -q .; then
+            echo "has_python_files=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_python_files=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Python
+        if: steps.check-python.outputs.has_python_files == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install Python linting tools
+        if: steps.check-python.outputs.has_python_files == 'true'
+        working-directory: cluster-service
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort pylint
+
+      - name: Run Pylint
+        if: steps.check-python.outputs.has_python_files == 'true'
+        working-directory: cluster-service
+        run: |
+        
+  gitleaks-cluster-service:
+    name: GitLeaks Security Scan
+    runs-on: ubuntu-latest
+    needs: cluster-service-lint
+    permissions:
+      security-events: write  
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  
+
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          config-path: .gitleaks.toml  
+          enable-upload-artifact: true
+          report-format: sarif
+          report-path: gitleaks-report.sarif
+
+  cluster-service-docker-build-push:
+    runs-on: ubuntu-latest
+    needs: gitleaks-cluster-service
+    # if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker Build and Push
+        if: github.event_name != 'pull_request'
+        working-directory: cluster-api
+        env:
+            CLUSTER_SERIVCE_REGISTRY_URL: ${{secrets.CLUSTER_SERVICE_REGISTRY_URL}}
+            CLUSTER_SERIVCE_REGISTRY_USER: ${{secrets.CLUSTER_SERVICE_REGISTRY_USER}}
+            CLUSTER_SERIVCE_REGISTRY_PASSWORD: ${{secrets.CLUSTER_SERVICE_REGISTRY_PASSWORD}}
+            
+        run: |
+          echo "Docker login to $REGISTRY_HOST"
+          
+
+          docker login -u ${{secrets.CLUSTER_SERVICE_REGISTRY_USER}} -p "${{secrets.CLUSTER_SERVICE_REGISTRY_PASSWORD}}"
+          
+          echo "Building Docker image"
+          docker build . -t ${{secrets.CLUSTER_SERVICE_REGISTRY_URL}}:${{ github.sha }} -t ${{secrets.CLUSTER_SERVICE_REGISTRY_URL}}:latest
+          
+          echo "Pushing Docker image"
+          docker push ${{secrets.CLUSTER_SERVICE_REGISTRY_URL}}:${{ github.sha }}
+          docker push ${{secrets.CLUSTER_SERVICE_REGISTRY_URL}}:latest
+          
+          echo "Clean up"
+          if [ -f .id_rsa ]; then rm .id_rsa; fi
+  
 
  
