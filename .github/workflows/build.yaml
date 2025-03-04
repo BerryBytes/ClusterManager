@@ -1,0 +1,31 @@
+name: Build and Push
+
+on:
+  workflow_call:
+    secrets:
+      REGISTRY_URL:
+        required: true
+      GCR_CRED:
+        required: true
+      ACCESS_TOKEN:
+        required: true
+
+jobs:
+  ecr-build-push:
+    runs-on: ubuntu-latest
+    name: Build and Push
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Build and Push
+        run: |
+          echo 'Docker login'
+          docker login -u ${{secrets.REGISTRY_USER}} -p "${{secrets.REGISTRY_PASSWORD}}" ${{secrets.REGISTRY_HOST}}
+          echo 'Running build...'
+          touch .env
+          echo "${{ secrets.ACCESS_TOKEN }}" > .id_rsa
+          export DOCKER_BUILDKIT=1 && eval `ssh-agent` && chmod 400 .id_rsa && ssh-add .id_rsa
+          docker build . --ssh default -t ${{secrets.REGISTRY_URL}}/${{github.event.repository.name}}:${{github.sha}}
+          echo 'Pushing Image...'
+          docker push ${{secrets.REGISTRY_URL}}/${{github.event.repository.name}}:${{github.sha}}
+          echo 'Done!'
