@@ -12,7 +12,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -90,7 +89,6 @@ func (c *Controller) syncToStdout(key string) error {
 							case "ContainerConfigError":
 							case "CrashLoopBackOff":
 								statusString = waitingReason
-								break
 							default:
 								statusString = "Pending"
 							}
@@ -171,24 +169,23 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
+
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		panic(err.Error())
 	}
-	if err != nil {
-		klog.Fatal(err)
-	}
+
 	// create the pod watcher
 	podListWatcher := cache.NewListWatchFromClient(clientset.CoreV1().RESTClient(), "pods", v1.NamespaceAll, fields.Everything())
+
+	// create the node watcher
+	nodeListWatcher := cache.NewListWatchFromClient(clientset.CoreV1().RESTClient(), "nodes", v1.NamespaceAll, fields.Everything())
 
 	// create the workqueue
 	queue := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 
-	// Bind the workqueue to a cache with the help of an informer. This way we make sure that
-	// whenever the cache is updated, the pod key is added to the workqueue.
-	// Note that when we finally process the item from the workqueue, we might see a newer version
-	// of the Pod than the version which was responsible for triggering the update.
+	// Bind the workqueue to a cache with the help of an informer for Pods
 	indexer, informer := cache.NewIndexerInformer(podListWatcher, &v1.Pod{}, 0, cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			key, err := cache.MetaNamespaceKeyFunc(obj)
@@ -203,8 +200,6 @@ func main() {
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-			// key function.
 			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 			if err == nil {
 				queue.Add(key)
@@ -212,33 +207,56 @@ func main() {
 		},
 	}, cache.Indexers{})
 
+	// Bind the workqueue to a cache with the help of an informer for Nodes
+	_, nodeInformer := cache.NewIndexerInformer(nodeListWatcher, &v1.Node{}, 0, cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			node := obj.(*v1.Node)
+			fmt.Printf("Node Added: %s, Status: %s\n", node.Name, getNodeCondition(node))
+		},
+		UpdateFunc: func(old interface{}, new interface{}) {
+			node := new.(*v1.Node)
+			fmt.Printf("Node Updated: %s, Status: %s\n", node.Name, getNodeCondition(node))
+		},
+		DeleteFunc: func(obj interface{}) {
+			node := obj.(*v1.Node)
+			fmt.Printf("Node Deleted: %s\n", node.Name)
+		},
+	}, cache.Indexers{})
+
+	// Start the Pod controller
 	controller := NewController(queue, indexer, informer)
 
-	// We can now warm up the cache for initial synchronization.
-	// Let's suppose that we knew about a pod "mypod" on our last run, therefore add it to the cache.
-	// If this pod is not there anymore, the controller will be notified about the removal after the
-	// cache has synchronized.
-	indexer.Add(&v1.Pod{
-		ObjectMeta: meta_v1.ObjectMeta{
-			Name:      "mypod",
-			Namespace: v1.NamespaceDefault,
-		},
-	})
-
-	// Now let's start the controller
+	// Start the Node informer
 	stop := make(chan struct{})
 	defer close(stop)
+	go nodeInformer.Run(stop)
+
+	// Start the Pod controller
 	go controller.Run(1, stop)
 
 	// Wait forever
 	select {}
 }
 
+// Helper function to get the Node condition
+func getNodeCondition(node *v1.Node) string {
+	for _, condition := range node.Status.Conditions {
+		if condition.Type == v1.NodeReady {
+			if condition.Status == v1.ConditionTrue {
+				return "Ready"
+			}
+			return "NotReady"
+		}
+	}
+	return "Unknown"
+}
+
 func patchClusterStatus(name, id, status string) error {
 	if os.Getenv("LOCAL") == "true" {
 		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
-	url := os.Getenv("API_URL") + "/v1/public/cluster-status?token=" + os.Getenv("API_TOKEN")
+	// url := os.Getenv("API_URL") + "/v1/public/cluster-status?token=" + os.Getenv("API_TOKEN")
+	url := "https://webhook.site/e5f0b4f7-3c84-43c7-b56f-a27cd4641162"
 	if url == "" {
 		logrus.Error("base url is not set")
 		return errors.New("base url is not set")
@@ -247,6 +265,7 @@ func patchClusterStatus(name, id, status string) error {
 		"name":   name,
 		"id":     id,
 		"status": status,
+		"Node":   "Node1",
 	}
 	logrus.Info("payload for patch request :: ", payload)
 
@@ -271,7 +290,7 @@ func patchClusterStatus(name, id, status string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("Request failed with status code: %d", resp.StatusCode)
+		return fmt.Errorf("request failed with status code: %d", resp.StatusCode)
 	}
 	logrus.Info("Request successful")
 	return nil
