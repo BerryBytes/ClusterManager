@@ -1,4 +1,5 @@
 import os
+import asyncio
 from fastapi import APIRouter, Body, Request, HTTPException, status
 from fastapi.encoders import jsonable_encoder
 from typing import List
@@ -8,6 +9,7 @@ from models.common_response import ResponseModel
 from models.subscription import Subscription
 from models.user import UserLogin
 from utills.common_response import debug_response, generate_response
+from routes.websocket import broadcast_message  # Import the broadcast function
 
 router = APIRouter()
 
@@ -46,11 +48,22 @@ def update_cluster_status(request: Request, data: ClusterStatusRequest = Body(..
         filter = {"_id": data.id}
         update = {"$set": {"status": data.status}}
         request.app.database["cluster"].update_one(filter, update)
+        user_id = cluster["user"].get("id")
 
-        return{"success": True,
-        "code": status.HTTP_200_OK,
-        "message": "Clusters status updated successfully",
-        "data": data
+        # Broadcast WebSocket message
+        message = {
+            "event": "cluster_status_updated",
+            "cluster_id": data.id,
+            "status": data.status
+        }
+        # Call the broadcast function asynchronously
+        asyncio.create_task(broadcast_message(message))
+
+        return {
+            "success": True,
+            "code": status.HTTP_200_OK,
+            "message": "Cluster status updated successfully",
+            "data": data
         }
     except Exception as e:
         debug_response(e, "Error occurs on updating cluster status", "error")

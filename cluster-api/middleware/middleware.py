@@ -30,6 +30,7 @@ public_routes = [
     "/favicon.ico",
     "/v1/public/subscriptions",
     "/v1/public/cluster-status"
+    "/v1/public/websocket",   
 ]
 
 
