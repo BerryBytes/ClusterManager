@@ -1,7 +1,7 @@
 from fastapi.encoders import jsonable_encoder
 from pyparsing import Any
 import logging
-from fastapi import Request, HTTPException,status
+from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
 from keycloak import KeycloakOpenID
 import jose
@@ -10,14 +10,23 @@ import os
 from schemas.user_schema import user_from_keycloak_dict, user_from_user_dict
 from utills.common_response import debug_response, generate_response
 
-os.environ['REQUESTS_CA_BUNDLE'] = f"{os.getenv('REQUESTS_CA_BUNDLE')}"
+# Check if REQUESTS_CA_BUNDLE environment variable exists
+ca_bundle = os.getenv('REQUESTS_CA_BUNDLE')
+if ca_bundle:
+    os.environ['REQUESTS_CA_BUNDLE'] = ca_bundle
+    print(f"REQUESTS_CA_BUNDLE is set to: {ca_bundle}")
+else:
+    print("Warning: REQUESTS_CA_BUNDLE environment variable is not set")
 
 # Initialize KeycloakOpenID
-keycloak_openid = KeycloakOpenID(server_url=os.getenv('KEYCLOAK_URL'),
-                                 client_id=os.getenv('CLIENT_ID'),
-                                 realm_name=os.getenv('REALM_NAME'),
-                                 verify=True
-                                 )
+try:
+    keycloak_openid = KeycloakOpenID(server_url=os.getenv('KEYCLOAK_URL'),
+                                    client_id=os.getenv('CLIENT_ID'),
+                                    realm_name=os.getenv('REALM_NAME'),
+                                    verify=True
+                                    )
+except Exception as e:
+    print(f"Error initializing KeycloakOpenID: {e}")
 
 # List of public routes that do not require authentication
 public_routes = [
@@ -29,8 +38,8 @@ public_routes = [
     "/openapi.json",
     "/favicon.ico",
     "/v1/public/subscriptions",
-    "/v1/public/cluster-status"
-    "/v1/public/websocket",   
+    "/v1/public/cluster-status",
+    "/v1/websocket/{user_id}",  # Fixed to match actual WebSocket endpoint with user_id parameter
 ]
 
 
@@ -105,5 +114,5 @@ def check_user(userInfo: Any, request: Request):
     except Exception as e:
         debug_response(e, "Error occurs on checking user", "error")
         raise
-    
+
 
