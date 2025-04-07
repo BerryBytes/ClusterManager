@@ -29,6 +29,7 @@ import { useClusterVersionList, useUpdateClusterVersion } from "../../../hooks/u
 import { useSubscriptionCheck } from "../../../hooks/useSubscriptionsResponse";
 import { I_clusterversion } from "../../../models/clusters";
 import { useParams } from "react-router-dom";
+import { WebsocketConnection } from "../../../container/WebsocketConnection";
 interface I_props {
   clusterDetails: I_cluster;
 }
@@ -37,6 +38,7 @@ export const ClusterActionArea = ({ clusterDetails }: I_props) => {
   const [clusterVersion, setClusterVersion] = useState<I_clusterversion | null>(null);
   const [openDownloadDialog, setOpenDownloadDialog] = useState(false);
   const { keycloak } = useKeycloak();
+  const { clusterStatus } = WebsocketConnection();
   const { data: clusterVersionData } =
     useClusterVersionList(keycloak.token || "");
   const { data: subscriptionCheck } = useSubscriptionCheck(
@@ -141,6 +143,11 @@ export const ClusterActionArea = ({ clusterDetails }: I_props) => {
   }, [clusterVersionData, clusterDetails]);
 
   console.log("cluster version", clusterVersion);
+
+  const currentClusterStatus = clusterStatus.find(
+    (statusObj) => statusObj.clusterId === clusterDetails.id
+  )?.status || 'Pending';
+
   return (
     <>
       <Paper
@@ -163,9 +170,9 @@ export const ClusterActionArea = ({ clusterDetails }: I_props) => {
           </Typography>
           <Typography
             variant="h5"
-            sx={{ color: StatusColorHelper(clusterDetails.status) }}
+            sx={{ color: StatusColorHelper(currentClusterStatus) }}
           >
-            {clusterDetails.status}
+            {currentClusterStatus}
           </Typography>
         </Box>
         <Box component={"p"}>
@@ -226,7 +233,7 @@ export const ClusterActionArea = ({ clusterDetails }: I_props) => {
             }}
           >
             {clusterDetails &&
-              clusterDetails.status.toLowerCase() === "stopped" ? (
+              currentClusterStatus.toLowerCase() === "stopped" ? (
               <CommonDialog
                 icon={<RestartAltIcon />}
                 buttonText="Start"
@@ -238,7 +245,7 @@ export const ClusterActionArea = ({ clusterDetails }: I_props) => {
               />
             ) : null}
 
-            {clusterDetails && clusterDetails.status === "Running" ? (
+            {clusterDetails && currentClusterStatus === "Running" ? (
               <CommonDialog
                 icon={<StopCircleIcon />}
                 buttonText="Stop"

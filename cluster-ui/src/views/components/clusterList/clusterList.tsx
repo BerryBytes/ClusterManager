@@ -15,10 +15,12 @@ import { formatDate } from "./table.utils";
 import { useClusterListResponse } from "../../../hooks/useClusterListResponse";
 import { useKubeConfigDownload } from "../../../hooks/useKubeConfigDownload";
 import { useQueryClient } from "@tanstack/react-query";
+import { WebsocketConnection } from "../../../container/WebsocketConnection";
 
 export const ClusterList = () => {
   const { keycloak } = useKeycloak();
   const queryClient = useQueryClient();
+  const { clusterStatus } = WebsocketConnection();
   const {
     isError: isClusterListError,
     data: clusterListData,
@@ -44,6 +46,9 @@ export const ClusterList = () => {
       setRows(() => {
         const newRows = clusterListData.data.data.map(
           (cluster: I_cluster, clusterIndex: number) => {
+            const currentClusterStatus = clusterStatus.find(
+              (statusObj) => statusObj.clusterId === cluster.id
+            )?.status || 'Pending';
             return createData(
               <Typography variant="subtitle1">{cluster.id}</Typography>,
               <Typography variant="subtitle1">{clusterIndex + 1}</Typography>,
@@ -73,13 +78,13 @@ export const ClusterList = () => {
                 {cluster.subscription.name}
               </Typography>,
               <Typography
-                sx={{ color: StatusColorHelper(cluster.status) }}
+                sx={{ color: StatusColorHelper(currentClusterStatus) }}
                 variant="subtitle1"
               >
-                {cluster.status}
+                {currentClusterStatus}
               </Typography>,
               <Button variant="outlined">Actions</Button>,
-              cluster.status === "Running" ? (
+              currentClusterStatus === "Running" ? (
                 <CloudDownload
                   onClick={() => handleOpen(cluster)}
                   style={{ cursor: "pointer" }}
@@ -121,14 +126,14 @@ export const ClusterList = () => {
     queryClient.invalidateQueries({ queryKey: ["clusterList"] });
   };
   
-  if (rest.fetchStatus === "fetching")
-    return (
-      <Box sx={{ height: 100, padding: 10 }}>
-        <Typography variant="h5" align="center">
-          Getting your data please wait...
-        </Typography>
-      </Box>
-    );
+  // if (rest.fetchStatus === "fetching")
+  //   return (
+  //     <Box sx={{ height: 100, padding: 10 }}>
+  //       <Typography variant="h5" align="center">
+  //         Getting your data please wait...
+  //       </Typography>
+  //     </Box>
+  //   );
   if (isClusterListError)
     return (
       <Box sx={{ height: 100, padding: 10 }}>
