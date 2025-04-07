@@ -12,11 +12,13 @@ export const WebsocketConnection = () => {
   const {
     isError: isClusterListError,
     data: clusterDataFromAPI,
-    refetch: refetchClusterListData,
   } = useClusterListResponse(keycloak.token || "");
 
   const socketConnection = (id: string) => {
-    if (ws) return; 
+    // Close existing WebSocket connection if it exists
+    if (ws) {
+      ws.close(1000); // Close the existing connection gracefully
+    }
 
     const newWs = new W3CWebSocket(`${config.VITE_APP_WEBSOCKET_CONNECTION_URL}/${id}`);
     setWS(newWs);
@@ -26,7 +28,7 @@ export const WebsocketConnection = () => {
     };
 
     newWs.onclose = (e) => {
-      console.info("WebSocket connection closed", e);
+      console.info("WebSocket connection disconnected", e);
       setWS(null);
       if (e.code !== 1000) {
         setTimeout(() => socketConnection(id), 5000); 
@@ -41,22 +43,19 @@ export const WebsocketConnection = () => {
 
     newWs.onmessage = (event: any) => {
       const response = event.data;
-      console.log(response);
-
+    
       if (response) {
         try {
           const _data = JSON.parse(response);
-          console.log(_data);
           if (_data.event === "cluster_status_updated") {
             setClusterStatus((prevStatus: any[]) => {
               return prevStatus.map((statusObj) => {
-                if (statusObj.clusterId === _data.clusterId) {
-                  return { clusterId: _data.clusterId, status: _data.status };
+                if (statusObj.clusterId === _data.cluster_id) {
+                  return { ...statusObj, status: _data.status };
                 }
                 return statusObj;
               });
             });
-            refetchClusterListData(); 
           }
         } catch (err) {
           console.error("Error parsing message data:", err);
@@ -85,11 +84,12 @@ export const WebsocketConnection = () => {
       setClusterStatus([]); 
     }
 
-
-    return 
+    return () => {
+      if (ws !== null) {
+        ws.close(1000);
+      }
+    }
   }, [clusterDataFromAPI, isClusterListError]);
-
-  console.log(clusterStatus); 
 
   return { clusterStatus }; 
 };

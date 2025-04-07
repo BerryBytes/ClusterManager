@@ -100,7 +100,7 @@ export const ClusterList = () => {
         return newRows;
       });
     }
-  }, [clusterListData]);
+  }, [clusterListData, clusterStatus]);
 
   const handleClickOnDownloadConfig = async (expirationTime: string) => {
     const data = {
@@ -126,14 +126,14 @@ export const ClusterList = () => {
     queryClient.invalidateQueries({ queryKey: ["clusterList"] });
   };
   
-  // if (rest.fetchStatus === "fetching")
-  //   return (
-  //     <Box sx={{ height: 100, padding: 10 }}>
-  //       <Typography variant="h5" align="center">
-  //         Getting your data please wait...
-  //       </Typography>
-  //     </Box>
-  //   );
+  if (rest.fetchStatus === "fetching")
+    return (
+      <Box sx={{ height: 100, padding: 10 }}>
+        <Typography variant="h5" align="center">
+          Getting your data please wait...
+        </Typography>
+      </Box>
+    );
   if (isClusterListError)
     return (
       <Box sx={{ height: 100, padding: 10 }}>
