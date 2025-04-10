@@ -13,6 +13,7 @@ from routes.user import router as user_route
 from routes.cluster import router as cluster
 from fastapi.middleware.cors import CORSMiddleware
 from utills.seeder import seed_db
+from routes.websocket import router as websocket_router
 
 app = FastAPI()
 
@@ -51,3 +52,4 @@ app.include_router(subscription_route, tags=["subscription"], prefix="/v1/subscr
 app.include_router(kube_route, tags=["kubeversion"], prefix="/v1/kubeversion", dependencies=PROTECTED)
 app.include_router(user_route, tags=["user"], prefix="/v1/users", dependencies=PROTECTED)
 app.include_router(cluster, tags=["cluster"], prefix="/v1/clusters", dependencies=PROTECTED)
+app.include_router(websocket_router, tags=["websocket"], prefix="/v1/websocket")
