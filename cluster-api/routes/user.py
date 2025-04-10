@@ -40,8 +40,9 @@ def subscription_check(request: Request):
         token = authorization_header.split("Bearer ")[1]
         user_info = is_authenticated(token)
         user_groups = keycloak_admin.get_user_groups(user_id=user_info['sub'])
+        user = request.app.database["user"].find_one({"email": user_info['email']})
         response = {
-            "user_id": user_info['sub'],
+            "user_id": user['_id'],
             "username": user_info['name'],
             "email": user_info['email'],
             "user_groups": user_groups,
@@ -79,9 +80,11 @@ def token_verify(request: Request):
             if 'create-cluster' not in realm_roles:
                 # If the user does not have the 'create-cluster' role
                 raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not allowed to create clusters")
+        print("token_verify :: ", user_info)
         response = {
             "status": status.HTTP_202_ACCEPTED,
-            "realm_roles": user_info['realm_access']['roles']
+            "realm_roles": user_info['realm_access']['roles'],
+            "user_id": user_info['sub'],
         }
         return generate_response(True, status.HTTP_202_ACCEPTED, "Token verified", [response])
     except Exception as e:
