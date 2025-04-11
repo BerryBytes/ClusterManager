@@ -3,7 +3,7 @@ import { w3cwebsocket as W3CWebSocket } from "websocket";
 import { useClusterListResponse } from "../hooks/useClusterListResponse";
 import { useKeycloak } from "@react-keycloak/web";
 
-export const WebsocketConnection = () => {
+export const useWebsocketConnection = () => {
   const { keycloak } = useKeycloak();
   const [ws, setWS] = useState<W3CWebSocket | null>(null);
   const [clusterStatus, setClusterStatus] = useState<any[]>([]); 

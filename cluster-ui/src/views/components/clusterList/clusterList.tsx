@@ -15,12 +15,12 @@ import { formatDate } from "./table.utils";
 import { useClusterListResponse } from "../../../hooks/useClusterListResponse";
 import { useKubeConfigDownload } from "../../../hooks/useKubeConfigDownload";
 import { useQueryClient } from "@tanstack/react-query";
-import { WebsocketConnection } from "../../../container/WebsocketConnection";
+import { useWebsocketConnection } from "../../../container/WebsocketConnection";
 
 export const ClusterList = () => {
   const { keycloak } = useKeycloak();
   const queryClient = useQueryClient();
-  const { clusterStatus } = WebsocketConnection();
+  const { clusterStatus } = useWebsocketConnection();
   const {
     isError: isClusterListError,
     data: clusterListData,

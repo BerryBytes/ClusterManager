@@ -29,7 +29,7 @@ import { useClusterVersionList, useUpdateClusterVersion } from "../../../hooks/u
 import { useSubscriptionCheck } from "../../../hooks/useSubscriptionsResponse";
 import { I_clusterversion } from "../../../models/clusters";
 import { useParams } from "react-router-dom";
-import { WebsocketConnection } from "../../../container/WebsocketConnection";
+import { useWebsocketConnection } from "../../../container/WebsocketConnection";
 interface I_props {
   clusterDetails: I_cluster;
 }
@@ -38,7 +38,7 @@ export const ClusterActionArea = ({ clusterDetails }: I_props) => {
   const [clusterVersion, setClusterVersion] = useState<I_clusterversion | null>(null);
   const [openDownloadDialog, setOpenDownloadDialog] = useState(false);
   const { keycloak } = useKeycloak();
-  const { clusterStatus } = WebsocketConnection();
+  const { clusterStatus } = useWebsocketConnection();
   const { data: clusterVersionData } =
     useClusterVersionList(keycloak.token || "");
   const { data: subscriptionCheck } = useSubscriptionCheck(
