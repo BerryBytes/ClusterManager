@@ -3,7 +3,6 @@ import logging
 import tempfile
 from kubernetes import client, config
 
-from src.models.client_node_metrix import ClientNodesMetrics
 from src.utils.best_cluster_utils import get_best_cluster
 
 
@@ -27,19 +26,23 @@ def get_available_resources_fromSecret(kubeconfigSecrets):
             api_client = client.CoreV1Api()
             k8s_nodes_matrix = api.list_cluster_custom_object("metrics.k8s.io", "v1beta1", "nodes")
             nodes = api_client.list_node().items 
-            client_nodes_metrics = ClientNodesMetrics()
-            percentage = cluster_load(nodes,k8s_nodes_matrix,client_nodes_metrics)
+            
+            # Use a dictionary to store metrics
+            client_nodes_metrics = {}
+
+            # Correctly call cluster_load to get percentages
+            percentage = cluster_load(nodes, k8s_nodes_matrix, client_nodes_metrics)
 
             clusterResource[Kube_secret["id"]] = {}
-            clusterResource[Kube_secret["id"]]["CPU"] =percentage["PercCPU"]
-            clusterResource[Kube_secret["id"]]["MEMORY"] =percentage["PercMEM"]
+            clusterResource[Kube_secret["id"]]["CPU"] = percentage["PercCPU"]
+            clusterResource[Kube_secret["id"]]["MEMORY"] = percentage["PercMEM"]
 
         best = get_best_cluster(clusterResource)
-        print("Best Cluster :: ",best)     
+        print("Best Cluster :: ", best)     
         return best
     except Exception as e:
-        logging.error("error occours :: ",str(e))
-        return f"Error occurred: {str(e)}"
+        logging.error("error occurs :: %s", str(e))  # Fixed string formatting
+        return {"error": f"Error occurred: {str(e)}"}  # Return a dictionary for consistent response
 
 
 
@@ -49,25 +52,28 @@ def cluster_load(nos, nmx, mx):
 
     node_metrics = {}
     for no in nos:
-        node_metrics[no.metadata.name] = {
-            "AllocatableCPU":ToMilliValue(no.status.allocatable["cpu"]),
-            "AllocatableMEM":ToMB(no.status.allocatable["memory"])
+        node_name = no.metadata.name
+        node_metrics[node_name] = {
+            "AllocatableCPU": ToMilliValue(no.status.allocatable["cpu"]),
+            "AllocatableMEM": ToMB(no.status.allocatable["memory"]),
+            "CurrentCPU": 0,  # Default to 0 for new nodes without metrics
+            "CurrentMEM": 0   # Default to 0 for new nodes without metrics
         }
 
-    for mx in nmx['items']:
-        if mx['metadata']['name'] in node_metrics:
-            node = node_metrics[mx['metadata']['name']]
-            node["CurrentCPU"] = ToMilliValue(mx['usage']['cpu'])
-            node["CurrentMEM"] = ToMB(mx['usage']['memory'])
-            node_metrics[mx['metadata']['name']] = node
+    for mx_item in nmx['items']:
+        node_name = mx_item['metadata']['name']
+        if node_name in node_metrics:
+            node = node_metrics[node_name]
+            node["CurrentCPU"] = ToMilliValue(mx_item['usage']['cpu'])
+            node["CurrentMEM"] = ToMB(mx_item['usage']['memory'])
+            node_metrics[node_name] = node
 
     ccpu, cmem, tcpu, tmem = 0, 0, 0, 0
-    for mx in node_metrics.values():
-        ccpu += mx["CurrentCPU"]
-        cmem += mx["CurrentMEM"]
-        tcpu += mx["AllocatableCPU"]
-        tmem += ToMB(mx["AllocatableMEM"])
-    
+    for metrics in node_metrics.values():
+        ccpu += metrics["CurrentCPU"]
+        cmem += metrics["CurrentMEM"]
+        tcpu += metrics["AllocatableCPU"]
+        tmem += metrics["AllocatableMEM"]
 
     mx["PercCPU"] = to_percentage(ccpu, tcpu)
     mx["PercMEM"] = to_percentage(cmem, tmem)
@@ -132,5 +138,4 @@ def get_pod_status(namespace:str, name:str):
         return pod_status
     except Exception as e:
         logging.error("error occurs while fetching status :: %s",str(e))
-        return "Creating"   
-        
+        return "Creating"

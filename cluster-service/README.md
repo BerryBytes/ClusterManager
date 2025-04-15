@@ -13,6 +13,28 @@ Before getting started, ensure the following tools are installed and configured:
 - **Uvicorn**: ASGI server to run the FastAPI app
 - **Message Broker**: (e.g., RabbitMQ, Kafka) for pub/sub functionality
 
+### **Set Up a Virtual Environment**
+
+1. Create a virtual environment:
+   ```bash
+   python3 -m venv venv
+   ```
+
+2. Activate the virtual environment:
+   - On Linux/macOS:
+     ```bash
+     source venv/bin/activate
+     ```
+   - On Windows:
+     ```bash
+     .\venv\Scripts\activate
+     ```
+
+3. Once activated, install the required dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
 ---
 
 ## 🚀 **Getting Started**
