@@ -1,25 +1,81 @@
 repos:
+   ##########  Precommit Hooks #########
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+      - id: check-vcs-permalinks
+      - id: check-symlinks
+      - id: destroyed-symlinks
+      - id: pretty-format-json
+
+   ##########  golang fmt and go tidey #########
+  - repo: https://github.com/TekWizely/pre-commit-golang
+    rev: v1.0.0-rc.1
+    hooks:
+      - id: go-fmt
+        args: [-w]
+      - id: go-mod-tidy
+
   - repo: https://github.com/psf/black
     rev: 23.9.1
     hooks:
       - id: black
         args: [--line-length=88]
-        language_version: python3.13
+  # Import sorter (runs before Black)
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        args: ["--profile=black"]
 
+  # Linter (flake8 for code quality)
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.1.0
+    hooks:
+      - id: flake8
+        args:
+          - --max-line-length=88
+          - --extend-ignore=E203,W503
+        additional_dependencies:
+          - flake8-bugbear
+          - flake8-comprehensions
+          - flake8-docstrings
+  # Static code analysis for Python (pylint optional)
+  - repo: https://github.com/pycqa/pylint
+    rev: v3.2.6
+    hooks:
+      - id: pylint
+        args: ["--disable=C0114,C0115,C0116"]
+        additional_dependencies:
+          - pylint-django
+          - pylint-flask
+   # Stylelint
+  - repo: https://github.com/thibaudcolas/pre-commit-stylelint
+    rev: v15.10.3
+    hooks:
+      - id: stylelint
+        files: \.(css|scss)$
+        exclude: "node_modules/"
+        additional_dependencies:
+          - stylelint
+          - stylelint-config-standard
+        args: ['--config', '.stylelintrc.json', '--fix']
+
+   # Codespell
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.5
     hooks:
       - id: codespell
         files: ^.*\.(py|c|h|md|rst|yml|go|sh|sql|tf|yaml)$
-        args: ["--write-changes", "--ignore-words-list", "hist,nd"]
-
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+        args: ["--ignore-words-list", "hist,nd"]
+   # Gitleaks
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.0
     hooks:
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-added-large-files
-      - id: debug-statements
-      - id: trailing-whitespace
-      - id: html-validate
-      - id: json-validate
+      - id: gitleaks
+        args: ["detect", "--verbose"]
+        verbose: true
