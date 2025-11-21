@@ -16,6 +16,7 @@ on:
     branches:
       - main
       - develop
+      - 'feat/**'
     types: [opened, synchronize, reopened]
 
 jobs:
