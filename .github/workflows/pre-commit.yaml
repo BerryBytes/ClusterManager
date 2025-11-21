@@ -2,9 +2,21 @@ name: Pre-Commit Checks
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - develop
+      - 'feat/**'
+      - 'feature/**'
+      - 'test/**'
+      - 'chore/**'
+      - 'fix/**'
+      - 'hotfix/**'
+      - 'docs/**'
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - develop
+    types: [opened, synchronize, reopened]
 
 jobs:
   precommit:
