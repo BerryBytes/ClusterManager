@@ -1,0 +1,34 @@
+version: 2
+mergeable:
+  - when: pull_request.*, pull_request_review.*
+    validate:
+      # Validate PR title
+      - do: title
+        must_include:
+          regex: '^(feat|docs|chore|fix|refactor|test|style|perf)(\(\w+\))?: .{5,}'
+          message: "Semantic release conventions must be followed. Example: feat(auth): add login page. Title must be at least 5 characters after the prefix."
+
+      # Ensure PR description is provided
+      - do: description
+        must_include:
+          regex: "[\\s\\S]{20,}"  # At least 20 characters
+          message: "Please provide a meaningful description of the PR (minimum 20 characters)."
+
+      # Ensure PR references an associated issue
+      - do: description
+        must_include:
+          regex: "(Closes|Fixes|Resolves|Addresses)\\s+#[0-9]+(,?\\s*#[0-9]+)*"
+          message: "PR must reference at least one issue (e.g., Closes #123, Fixes #123, #124)."
+
+      # Ensure at least one required label is applied
+      - do: label
+        must_include:
+          regex: "^(bug|enhancement|documentation|feature|refactor|performance|chore|wip|test|ci|security|dependencies)$"
+          message: "PR must include at least one valid label."
+
+    pass:
+      - do: labels
+        add:
+          - "validated"
+      - do: checks
+        status: "success"
