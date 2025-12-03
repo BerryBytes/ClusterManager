@@ -1,0 +1,47 @@
+name: Schedule Stale PRs and Issues Management
+
+permissions:
+  actions: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+on:
+  schedule:
+    - cron: '0 9 * * 1,4'  # Monday & Thursday at 9 AM UTC
+  workflow_dispatch:
+
+concurrency:
+  group: stale-management
+  cancel-in-progress: false
+
+jobs:
+  stale-management:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Manage Stale Issues and PRs
+        uses: actions/stale@v10.1.0
+        with:
+          repo-token: ${{ github.token }}
+
+          # General settings
+          days-before-stale: '30'
+          days-before-close: '7'
+          operations-per-run: '60'
+          remove-stale-when-updated: 'true'
+
+          # Issue-specific settings
+          stale-issue-label: 'stale'
+          stale-issue-message: 'This issue has been marked as stale due to inactivity. It will be closed in 7 days unless there is further activity.'
+          close-issue-message: 'This issue has been closed due to inactivity. Please feel free to reopen if you think it is still relevant.'
+          exempt-issue-labels: 'bug,critical,security,high-priority,enhancement,discussion,help wanted,good first issue'
+
+          # PR-specific settings
+          stale-pr-label: 'stale'
+          stale-pr-message: 'This pull request has been marked as stale due to inactivity. It will be closed in 7 days unless further changes are made or a review is requested.'
+          close-pr-message: 'This pull request has been closed due to inactivity. Please feel free to reopen if you think it is still relevant.'
+          exempt-pr-labels: 'WIP,In Progress'
