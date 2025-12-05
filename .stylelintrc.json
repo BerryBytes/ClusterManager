@@ -4,6 +4,6 @@
     "color-hex-length": "short",
     "no-duplicate-selectors": true,
     "selector-max-id": 0,
-    "selector-no-qualifyin`g-type": true
+    "selector-no-qualifying-type": true
   }
 }
