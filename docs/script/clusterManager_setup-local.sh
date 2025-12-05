@@ -339,18 +339,18 @@ function setup_metallb_host() {
     echo "Detecting network configuration..."
     local network=""
     local control_plane_id
-    
+
     # First try: Get network from control plane container
     control_plane_id=$(docker ps -a | grep "kind-control-plane" | grep "$HOST_CLUSTER" | awk '{print $1}')
     if [ -n "$control_plane_id" ]; then
         network=$(docker inspect "$control_plane_id" | grep -oP '"Gateway": "\K[0-9]+\.[0-9]+' | head -1)
     fi
-    
+
     # Second try: Get network from kind network directly
     if [ -z "$network" ]; then
         network=$(docker network inspect kind | grep -oP '"Gateway": "\K[0-9]+\.[0-9]+' | head -1)
     fi
-    
+
     # Fallback to default if both methods fail
     if [ -z "$network" ]; then
         network="172.18"
@@ -364,7 +364,7 @@ function setup_metallb_host() {
     # Configure IPAddressPool if not already configured
     if ! kubectl get ipaddresspool -n metallb-system example --kubeconfig="$KUBECONFIG" >/dev/null 2>&1; then
         echo "Creating IPAddressPool with range $IP_START-$IP_END..."
-        
+
         # Apply IPAddressPool
         cat <<EOF | kubectl apply -f - --kubeconfig="$KUBECONFIG"
 apiVersion: metallb.io/v1beta1
@@ -396,18 +396,18 @@ EOF
     echo "Verifying MetalLB configuration..."
     local verify_timeout=30
     local verify_start=$SECONDS
-    
+
     while true; do
         if kubectl get ipaddresspool -n metallb-system example --kubeconfig="$KUBECONFIG" >/dev/null 2>&1 && \
            kubectl get l2advertisement -n metallb-system default --kubeconfig="$KUBECONFIG" >/dev/null 2>&1; then
             break
         fi
-        
+
         if (( SECONDS - verify_start >= verify_timeout )); then
             echo "Error: Timeout waiting for MetalLB configuration verification"
             return 1
         fi
-        
+
         echo "Waiting for MetalLB configuration to be ready..."
         sleep 5
     done
@@ -483,18 +483,18 @@ function setup_metallb_service() {
     echo "Detecting network configuration..."
     local network=""
     local control_plane_id
-    
+
     # First try: Get network from control plane container
     control_plane_id=$(docker ps -a | grep "kind-control-plane" | grep "$SERVICE_CLUSTER" | awk '{print $1}')
     if [ -n "$control_plane_id" ]; then
         network=$(docker inspect "$control_plane_id" | grep -oP '"Gateway": "\K[0-9]+\.[0-9]+' | head -1)
     fi
-    
+
     # Second try: Get network from kind network directly
     if [ -z "$network" ]; then
         network=$(docker network inspect kind | grep -oP '"Gateway": "\K[0-9]+\.[0-9]+' | head -1)
     fi
-    
+
     # Fallback to default if both methods fail
     if [ -z "$network" ]; then
         network="172.18"
@@ -737,8 +737,8 @@ spec:
           value: /etc/tls/ca-certificates/ca.crt
         - name: SERVICE_URL
           value: https://cluster-service-python.clustermanager.local
-        - name: CLIENT_ID                                                                                                                                                                                                                                                                                                    
-          value: clustermanagerclient        
+        - name: CLIENT_ID
+          value: clustermanagerclient
         image: umesh1212/cluster-api:tag16
         imagePullPolicy: Always
         livenessProbe:
@@ -769,14 +769,14 @@ spec:
           requests:
             cpu: 20m
             memory: 20Mi
-        volumeMounts:                                                                                   
-        - mountPath: /etc/tls/ca-certificates/                                                          
-          name: mkcert-ca 
-      volumes:                                                                                          
-      - configMap:                                                                                      
-          defaultMode: 420                                                                              
-          name: mkcert-ca                                                                               
-        name: mkcert-ca   
+        volumeMounts:
+        - mountPath: /etc/tls/ca-certificates/
+          name: mkcert-ca
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: mkcert-ca
+        name: mkcert-ca
 ---
 apiVersion: v1
 kind: Service
@@ -849,7 +849,7 @@ spec:
     metadata:
       labels:
         app: node
-        app.kubernetes.io/provider: zerone                 
+        app.kubernetes.io/provider: zerone
     spec:
       containers:
       - image: rajivgs/cluster-ui:v20
@@ -996,8 +996,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   annotations:
-    nginx.ingress.kubernetes.io/proxy-buffer-size: 128k                                                 
-    nginx.ingress.kubernetes.io/proxy-buffers: 4 256k  
+    nginx.ingress.kubernetes.io/proxy-buffer-size: 128k
+    nginx.ingress.kubernetes.io/proxy-buffers: 4 256k
   name: keycloak
 spec:
   ingressClassName: nginx
@@ -1376,7 +1376,7 @@ sleep 10
 function setup_metrics_server() {
     echo "Installing metrics server in $HOST_CLUSTER..."
     export KUBECONFIG="$HOST_CLUSTER-kubeconfig"
-  
+
     # Install metrics server components
     kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 
@@ -1435,5 +1435,3 @@ update_hosts_file_with_ingress $SERVICE_CLUSTER
 update_hosts_file_with_ingress $HOST_CLUSTER
 sleep 10
 setup_metrics_server
-
-  

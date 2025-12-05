@@ -6,7 +6,7 @@ import { useKeycloak } from "@react-keycloak/web";
 export const useWebsocketConnection = () => {
   const { keycloak } = useKeycloak();
   const [ws, setWS] = useState<W3CWebSocket | null>(null);
-  const [clusterStatus, setClusterStatus] = useState<any[]>([]); 
+  const [clusterStatus, setClusterStatus] = useState<any[]>([]);
   const config = (window as any).config;
 
   const {
@@ -31,7 +31,7 @@ export const useWebsocketConnection = () => {
       console.info("WebSocket connection disconnected", e);
       setWS(null);
       if (e.code !== 1000) {
-        setTimeout(() => socketConnection(id), 5000); 
+        setTimeout(() => socketConnection(id), 5000);
       }
     };
 
@@ -43,7 +43,7 @@ export const useWebsocketConnection = () => {
 
     newWs.onmessage = (event: any) => {
       const response = event.data;
-    
+
       if (response) {
         try {
           const _data = JSON.parse(response);
@@ -64,7 +64,7 @@ export const useWebsocketConnection = () => {
     };
   };
 
-  const hasSocketConnection = useRef(false); 
+  const hasSocketConnection = useRef(false);
 
   useEffect(() => {
     if (!isClusterListError && clusterDataFromAPI && clusterDataFromAPI.data.data.length > 0) {
@@ -81,7 +81,7 @@ export const useWebsocketConnection = () => {
         hasSocketConnection.current = true;
       }
     } else {
-      setClusterStatus([]); 
+      setClusterStatus([]);
     }
 
     return () => {
@@ -91,5 +91,5 @@ export const useWebsocketConnection = () => {
     }
   }, [clusterDataFromAPI, isClusterListError]);
 
-  return { clusterStatus }; 
+  return { clusterStatus };
 };

@@ -101,7 +101,7 @@ function ResponsiveAppBar({ userDetails }: I_props) {
               sx={{
                 fontSize: "20px",
                 color: "#fff",
-              
+
                 "&:hover": {
                   cursor: "pointer",
                   // background:"#5d92f5",

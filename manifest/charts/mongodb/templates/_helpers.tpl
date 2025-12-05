@@ -572,7 +572,7 @@ Validate values of MongoDB&reg; - number of replicas must be the same than NodeP
 {{- if and (not .Values.externalAccess.autoDiscovery.enabled) (eq $nodePortListLength 0) -}}
 mongodb: .Values.externalAccess.service.nodePorts
     externalAccess.service.nodePorts or externalAccess.autoDiscovery.enabled are required when externalAccess is enabled.
-{{- else if and (not .Values.externalAccess.autoDiscovery.enabled) (not (eq $replicaCount $nodePortListLength )) -}} 
+{{- else if and (not .Values.externalAccess.autoDiscovery.enabled) (not (eq $replicaCount $nodePortListLength )) -}}
 mongodb: .Values.externalAccess.service.nodePorts
     Number of replicas ({{ $replicaCount }}) and nodePorts ({{ $nodePortListLength }}) array length must be the same.
 {{- end -}}

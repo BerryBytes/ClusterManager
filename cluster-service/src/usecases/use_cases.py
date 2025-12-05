@@ -1,20 +1,34 @@
+"""
+Cluster management use-cases: create, start, stop, delete, and manage vclusters.
+
+Includes kubeconfig generation and host cluster checks.
+"""
+
 import base64
+import json
 import logging
 import os
 import tempfile
 import time
-import json
-from flask import jsonify, request
-import yaml
-from kubernetes import client, config
 from http.client import HTTPException
+
+import yaml
+from flask import jsonify, request
+from kubernetes import client, config
+from src.models.subscription import parse_subscription_json
+from src.utils.cluster_utils import (
+    add_labels_to_statefulset,
+    createNamespace,
+    generate_cluster_yaml,
+    generate_resource_quota_yaml,
+    generate_vclusterYaml,
+)
 from src.utils.common_utils import get_available_resources_fromSecret, get_pod_status
 from src.utils.secret_utils import get_vault_secret
-from src.utils.cluster_utils import add_labels_to_statefulset, createNamespace, generate_vclusterYaml
-from src.utils.cluster_utils import generate_cluster_yaml, generate_resource_quota_yaml
-from src.models.subscription import parse_subscription_json
+
 
 def load_kubernetes_client(base64_kubeconfig):
+    """Load a Kubernetes client from a base64-encoded kubeconfig string."""
     decoded_kubeconfig = base64.b64decode(base64_kubeconfig)
     with tempfile.NamedTemporaryFile(delete=False) as temp_file:
         temp_file.write(decoded_kubeconfig)
@@ -24,7 +38,9 @@ def load_kubernetes_client(base64_kubeconfig):
     temp_file.close()
     return k8s_client
 
+
 def create_cluster_usecase(data):
+    """Create or update a virtual cluster based on the provided payload."""
     logging.info("Published data Create Cluster :: " + json.dumps(data["data"]))
     secret = get_vault_secret(data["data"]["host_cluster_id"])
     host_cluster_name = data["data"]["host_cluster_name"]
@@ -34,15 +50,19 @@ def create_cluster_usecase(data):
     namespace = data["data"]["cluster"]["name"] + "-vcluster"
     name = data["data"]["cluster"]["name"]
     cluster_id = data["data"]["cluster"]["id"]
-    domain = os.getenv('HOST_NAME')
-    host = f'{name}.{host_cluster_name}.{domain}'
+    domain = os.getenv("HOST_NAME")
+    host = f"{name}.{host_cluster_name}.{domain}"
 
-    vcluster = generate_vclusterYaml(namespace=namespace, name=name, host=host, kube_version=kube_version)
+    vcluster = generate_vclusterYaml(
+        namespace=namespace, name=name, host=host, kube_version=kube_version
+    )
     custom_resource = generate_cluster_yaml(namespace=namespace, name=name)
     logging.info("Subscription data: " + json.dumps(data["data"]["subscription"]))
 
     subscriptionData = parse_subscription_json(data["data"]["subscription"])
-    quota = generate_resource_quota_yaml(subscription=subscriptionData, namespace=namespace)
+    quota = generate_resource_quota_yaml(
+        subscription=subscriptionData, namespace=namespace
+    )
 
     try:
         try:
@@ -51,7 +71,7 @@ def create_cluster_usecase(data):
                 version="v1alpha1",
                 namespace=namespace,
                 plural="vclusters",
-                name=name
+                name=name,
             )
         except client.rest.ApiException as e:
             if e.status == 404:
@@ -59,10 +79,12 @@ def create_cluster_usecase(data):
                 pass
             else:
                 raise e
-        
+
         if existing_resource:
-            vcluster_dict = yaml.safe_load(vcluster) if isinstance(vcluster, str) else vcluster
-            resource_version = existing_resource['metadata'].get('resourceVersion')
+            vcluster_dict = (
+                yaml.safe_load(vcluster) if isinstance(vcluster, str) else vcluster
+            )
+            resource_version = existing_resource["metadata"].get("resourceVersion")
             vcluster_dict["metadata"]["resourceVersion"] = str(resource_version)
 
             client.CustomObjectsApi().replace_namespaced_custom_object(
@@ -74,10 +96,12 @@ def create_cluster_usecase(data):
                 body=vcluster_dict,
             )
             wait_for_service_creation(namespace, name)
-            return jsonify({
-                "message": "vcluster updated successfully",
-                "name": name,
-            })
+            return jsonify(
+                {
+                    "message": "vcluster updated successfully",
+                    "name": name,
+                }
+            )
         else:
             createNamespace(namespace)
             client.CustomObjectsApi().create_namespaced_custom_object(
@@ -108,35 +132,39 @@ def create_cluster_usecase(data):
         logging.error("error occurs while creating cluster :: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
+
 def generate_kubeconfig_usecase(body):
-    name = body['name']
+    """Generate a kubeconfig for a vcluster with a temporary token."""
+    name = body["name"]
     hostClusterId = body["hostClusterId"]
     expirationTime = body["expirationTime"]
     namespace = f"{name}-vcluster"
     secret = get_vault_secret(hostClusterId)
-    load_kubernetes_client(secret) 
+    load_kubernetes_client(secret)
 
-    secret = client.CoreV1Api().read_namespaced_secret(name=f"{name}-kubeconfig", namespace=namespace)
-    kubeconfig = base64.b64decode(secret.data['value']).decode('utf-8')
+    secret = client.CoreV1Api().read_namespaced_secret(
+        name=f"{name}-kubeconfig", namespace=namespace
+    )
+    kubeconfig = base64.b64decode(secret.data["value"]).decode("utf-8")
     kubeconfig_data = yaml.safe_load(kubeconfig)
     server = None
-    for cluster in kubeconfig_data.get('clusters', []):
-        ser = cluster.get('cluster', {}).get('server')
+    for cluster in kubeconfig_data.get("clusters", []):
+        ser = cluster.get("cluster", {}).get("server")
         if ser:
             server = ser
             break
-    print("SERVER :: ", server)    
+    print("SERVER :: ", server)
 
     cluster_cert = None
-    for cluster in kubeconfig_data.get('clusters', []):
-        cert = cluster.get('cluster', {}).get('certificate-authority-data')
+    for cluster in kubeconfig_data.get("clusters", []):
+        cert = cluster.get("cluster", {}).get("certificate-authority-data")
         if cert:
             cluster_cert = cert
             break
 
     print(cluster_cert)
 
-    k8sClient = load_kubernetes_client(secret.data['value'])
+    k8sClient = load_kubernetes_client(secret.data["value"])
     vclient = k8sClient.CoreV1Api()
     rbac_v1 = k8sClient.RbacAuthorizationV1Api()
 
@@ -151,7 +179,9 @@ def generate_kubeconfig_usecase(body):
         service_account = client.V1ServiceAccount(
             metadata=client.V1ObjectMeta(name=name)
         )
-        vclient.create_namespaced_service_account(namespace="default", body=service_account)
+        vclient.create_namespaced_service_account(
+            namespace="default", body=service_account
+        )
 
         cluster_role = client.V1ClusterRole(
             metadata=client.V1ObjectMeta(name=name, namespace="default"),
@@ -189,13 +219,11 @@ def generate_kubeconfig_usecase(body):
         metadata=client.V1ObjectMeta(name=name),
         spec=client.V1TokenRequestSpec(
             expiration_seconds=expirationTime,
-            audiences=["https://kubernetes.default.svc.cluster.local", "k3s"]  
-        )
+            audiences=["https://kubernetes.default.svc.cluster.local", "k3s"],
+        ),
     )
     token_response = vclient.create_namespaced_service_account_token(
-        namespace="default",
-        name=name,
-        body=token_request
+        namespace="default", name=name, body=token_request
     )
     print(token_response)
     token_value = token_response.status.token
@@ -204,19 +232,18 @@ def generate_kubeconfig_usecase(body):
         "cluster": name,
         "clusterCerts": cluster_cert,
         "token": token_value,
-        "server": server
+        "server": server,
     }
     return jsonify(responseData), 200
 
+
 def check_host_cluster_usecase(body):
+    """Check available resources across multiple host clusters and return the best."""
     logging.info("Published data: " + json.dumps(body))
     secret_response = []
     for host_cluster_id in body["host_cluster_ids"]:
         secret = get_vault_secret(host_cluster_id)
-        secret_response.append({
-            "id": host_cluster_id,
-            "encoded_config": secret
-        })
+        secret_response.append({"id": host_cluster_id, "encoded_config": secret})
     best_cluster = get_available_resources_fromSecret(secret_response)
     if best_cluster:
         key = list(best_cluster.keys())[0]
@@ -224,55 +251,56 @@ def check_host_cluster_usecase(body):
         result = {
             "id": key,
             "best_cpu": data["best_cpu"],
-            "best_memory": data["best_memory"]
+            "best_memory": data["best_memory"],
         }
         return jsonify(result), 200
     else:
         return jsonify({"error": "No available resources"}), 404
 
+
 def start_cluster_usecase(data):
+    """Start a vcluster by scaling its StatefulSet replicas to 1."""
     logging.info("Published data: " + json.dumps(data))
     received_data = data["data"]
     secret = get_vault_secret(received_data["host_cluster_id"])
-    load_kubernetes_client(secret)  
+    load_kubernetes_client(secret)
     name = received_data["cluster_name"]
     namespace = f"{name}-vcluster"
     api_client_apps = client.AppsV1Api()
 
     try:
         vcluster_statefulset = api_client_apps.read_namespaced_stateful_set(
-            name=name,
-            namespace=namespace
+            name=name, namespace=namespace
         )
         if vcluster_statefulset.spec.replicas >= 1:
-            return jsonify({"message": "cluster already started"}), 200 
+            return jsonify({"message": "cluster already started"}), 200
         elif vcluster_statefulset.spec.replicas == 0:
             vcluster_statefulset.spec.replicas = 1
             api_client_apps.replace_namespaced_stateful_set(
-                name=name,
-                namespace=namespace,
-                body=vcluster_statefulset
+                name=name, namespace=namespace, body=vcluster_statefulset
             )
         res = {"message": "cluster starting"}
         logging.info("Cluster started :: ", res)
-        return jsonify(res), 200   
+        return jsonify(res), 200
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 def get_cluster_status_usecase(body):
-    name = body['name']
+    """Return the current status of a vcluster by checking pod states."""
+    name = body["name"]
     hostClusterId = body["hostClusterId"]
     namespace = f"{name}-vcluster"
     secret = get_vault_secret(hostClusterId)
-    load_kubernetes_client(secret)  
+    load_kubernetes_client(secret)
     status = get_pod_status(namespace, name)
     print("STATUS :: ", status)
-    responseData = {
-        "status": status
-    }
+    responseData = {"status": status}
     return jsonify(responseData), 200
 
+
 def stop_vcluster_usecase(data):
+    """Stop a vcluster by scaling its StatefulSet replicas to 0."""
     received_data = data["data"]
     secret = get_vault_secret(received_data["host_cluster_id"])
     load_kubernetes_client(secret)
@@ -281,17 +309,14 @@ def stop_vcluster_usecase(data):
     namespace = f"{name}-vcluster"
     try:
         vcluster_statefulset = api_client_apps.read_namespaced_stateful_set(
-            name=name,
-            namespace=namespace
+            name=name, namespace=namespace
         )
         if vcluster_statefulset.spec.replicas == 0:
-            return jsonify({"message": "cluster already stopped"}), 200 
+            return jsonify({"message": "cluster already stopped"}), 200
         elif vcluster_statefulset.spec.replicas >= 1:
             vcluster_statefulset.spec.replicas = 0
             api_client_apps.replace_namespaced_stateful_set(
-                name=name,
-                namespace=namespace,
-                body=vcluster_statefulset
+                name=name, namespace=namespace, body=vcluster_statefulset
             )
         res = {"message": "cluster stopping"}
         logging.info("Cluster stopping :: ", res)
@@ -299,7 +324,9 @@ def stop_vcluster_usecase(data):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 def delete_vcluster_usecase(data):
+    """Delete a vcluster by removing its Kubernetes namespace."""
     received_data = data["data"]
     secret = get_vault_secret(received_data["host_cluster_id"])
     load_kubernetes_client(secret)
@@ -315,29 +342,39 @@ def delete_vcluster_usecase(data):
         print(f"Error deleting namespace '{namespace}': {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-def update_cluster_plan_usecase( data):
+
+def update_cluster_plan_usecase(data):
+    """Update the resource quotas of a vcluster based on a new subscription plan."""
     logging.info("Published data: " + json.dumps(data["data"]))
     secret = get_vault_secret(data["data"]["host_cluster_id"])
-    load_kubernetes_client(secret) 
+    load_kubernetes_client(secret)
     try:
         namespace = data["data"]["cluster"] + "-vcluster"
         logging.info("Subscription data: " + json.dumps(data["data"]["subscription"]))
         subscriptionData = parse_subscription_json(data["data"]["subscription"])
-        quota = generate_resource_quota_yaml(subscription=subscriptionData, namespace=namespace) 
-        resource_quotas = client.CoreV1Api().list_namespaced_resource_quota(namespace=namespace)
+        quota = generate_resource_quota_yaml(
+            subscription=subscriptionData, namespace=namespace
+        )
+        resource_quotas = client.CoreV1Api().list_namespaced_resource_quota(
+            namespace=namespace
+        )
         client.CoreV1Api().create_namespaced_resource_quota(
             namespace=namespace, body=yaml.safe_load(quota)
         )
         for rq in resource_quotas.items:
             resource_quota_name = rq.metadata.name
             try:
-                response = client.CoreV1Api().delete_namespaced_resource_quota(name=resource_quota_name, namespace=namespace)
+                response = client.CoreV1Api().delete_namespaced_resource_quota(
+                    name=resource_quota_name, namespace=namespace
+                )
                 print(f"Resource Quota '{resource_quota_name}' deleted successfully.")
             except client.rest.ApiException as e:
                 if e.status == 404:
                     print(f"Resource Quota '{resource_quota_name}' not found.")
                 else:
-                    print(f"An error occurred while deleting '{resource_quota_name}':", e)           
+                    print(
+                        f"An error occurred while deleting '{resource_quota_name}':", e
+                    )
         return {
             "message": "vcluster plan upgraded successfully",
         }
@@ -345,51 +382,57 @@ def update_cluster_plan_usecase( data):
         print("Error occurs while updating cluster plan :: ", e)
         raise HTTPException(status_code=500, detail=str(e))
 
+
 def create_ingress(name: str, namespace: str, host: str):
+    """Create an NGINX ingress for the given vcluster."""
     print("WE are here for INGRESS")
     networking_v1_api = client.NetworkingV1Api()
     body = client.V1Ingress(
         api_version="networking.k8s.io/v1",
         kind="Ingress",
-        metadata=client.V1ObjectMeta(name=name, annotations={
-            "nginx.ingress.kubernetes.io/backend-protocol": "HTTPS",
-            "nginx.ingress.kubernetes.io/ssl-passthrough": "true",
-            "nginx.ingress.kubernetes.io/ssl-redirect": "true",
-            "cert-manager.io/cluster-issuer": "letsencrypt-prod"
-        }),
+        metadata=client.V1ObjectMeta(
+            name=name,
+            annotations={
+                "nginx.ingress.kubernetes.io/backend-protocol": "HTTPS",
+                "nginx.ingress.kubernetes.io/ssl-passthrough": "true",
+                "nginx.ingress.kubernetes.io/ssl-redirect": "true",
+                "cert-manager.io/cluster-issuer": "letsencrypt-prod",
+            },
+        ),
         spec=client.V1IngressSpec(
             ingress_class_name="nginx",
-            tls=[
-                client.V1IngressTLS(
-                    hosts=[host],
-                    secret_name="tls-secret"
+            tls=[client.V1IngressTLS(hosts=[host], secret_name="tls-secret")],
+            rules=[
+                client.V1IngressRule(
+                    host=host,
+                    http=client.V1HTTPIngressRuleValue(
+                        paths=[
+                            client.V1HTTPIngressPath(
+                                path="/",
+                                path_type="ImplementationSpecific",
+                                backend=client.V1IngressBackend(
+                                    service=client.V1IngressServiceBackend(
+                                        port=client.V1ServiceBackendPort(
+                                            number=443,
+                                        ),
+                                        name=name,
+                                    )
+                                ),
+                            )
+                        ]
+                    ),
                 )
             ],
-            rules=[client.V1IngressRule(
-                host=host,
-                http=client.V1HTTPIngressRuleValue(
-                    paths=[client.V1HTTPIngressPath(
-                        path="/",
-                        path_type="ImplementationSpecific",
-                        backend=client.V1IngressBackend(
-                            service=client.V1IngressServiceBackend(
-                                port=client.V1ServiceBackendPort(
-                                    number=443,
-                                ),
-                                name=name)
-                            )
-                    )]
-                )
-            )]
-        )
+        ),
     )
     api_response = networking_v1_api.create_namespaced_ingress(
-        namespace=namespace,
-        body=body
+        namespace=namespace, body=body
     )
     print("Ingress created. Status='%s'" % str(api_response.status))
 
+
 def wait_for_service_creation(namespace, name):
+    """Wait until the Kubernetes Service for a vcluster exists."""
     print("WE are here for WAiting")
     api_client = client.CoreV1Api()
     while True:
@@ -403,18 +446,22 @@ def wait_for_service_creation(namespace, name):
             print(f"Service '{name}' not found, retrying...")
             time.sleep(5)
 
+
 def wait_for_sts_pod_readiness(namespace, name, clusterId):
+    """Wait until all pods in a StatefulSet are running, then add status labels."""
     try:
         core_v1 = client.CoreV1Api()
-        timeout = 300 
+        timeout = 300
         start_time = time.time()
         while True:
-            pods = core_v1.list_namespaced_pod(namespace, field_selector=f"metadata.name={name}").items
+            pods = core_v1.list_namespaced_pod(
+                namespace, field_selector=f"metadata.name={name}"
+            ).items
             all_ready = all(p.status.phase == "Running" for p in pods)
             if all_ready:
                 labels = {
                     "status-controller-vcluster": "cluster-manager",
-                    "status-controller": clusterId
+                    "status-controller": clusterId,
                 }
                 add_labels_to_statefulset(namespace, name, labels)
                 return True

@@ -1,5 +1,7 @@
 from typing import Any, List, Optional, Union
-from pydantic import BaseModel # type: ignore
+
+from pydantic import BaseModel  # type: ignore
+
 
 class ResponseModel(BaseModel):
     code: int

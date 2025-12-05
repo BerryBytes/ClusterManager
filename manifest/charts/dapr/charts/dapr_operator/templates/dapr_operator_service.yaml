@@ -11,7 +11,7 @@ spec:
     app: dapr-operator
   ports:
   - protocol: TCP
-    port: {{ .Values.ports.port }} 
+    port: {{ .Values.ports.port }}
     targetPort: {{ .Values.ports.targetPort }}
 ---
 apiVersion: v1

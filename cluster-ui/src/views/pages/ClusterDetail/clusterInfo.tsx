@@ -10,7 +10,7 @@ export const ClusterInfo = () => {
       <section>
         <ClusterDetails />
       </section>
-     
+
     </div>
   );
 };

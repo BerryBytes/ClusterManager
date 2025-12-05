@@ -9,5 +9,5 @@ window.config = {
         "01cloud":["https://console.example.io/loginsso/clustermanager","https://console.test.example.dev/loginsso/clustermanager","https://console.staging.example.dev/loginsso/clustermanager"]
     }
 
- 
+
 }

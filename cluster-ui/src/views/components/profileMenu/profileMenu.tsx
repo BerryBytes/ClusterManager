@@ -75,7 +75,7 @@ export const ProfileMenu = ({
                 overflow: "hidden",
                 textOverflow: "ellipsis",maxWidth:320}}
               >
-                {userDetails && userDetails.email ? userDetails.email : ""} 
+                {userDetails && userDetails.email ? userDetails.email : ""}
               </Typography>
             </div>
           </div>
@@ -139,7 +139,7 @@ export const ProfileMenu = ({
               }
             />
           </ListItem>
-          
+
         </List>
       </div>
     </Menu>

@@ -67,7 +67,7 @@ Project maintainers may further clarify what constitutes project representation.
 
 ### **Reporting**
 
-Instances of abusive, harassing, or otherwise unacceptable behavior can be reported to the project team at:  
+Instances of abusive, harassing, or otherwise unacceptable behavior can be reported to the project team at:
 **[community@01coud.com](mailto:community@01coud.com)**
 
 All reports will be:

@@ -123,10 +123,10 @@ export const ClusterActionArea = ({ clusterDetails }: I_props) => {
 
     try {
       await updateClusterVersionAsync({id:params.id,cluster:{kube_version:clusterDetails.kube_version}});
-     
+
     } catch (error) {
       console.log(error);
-      
+
     }
 
   }

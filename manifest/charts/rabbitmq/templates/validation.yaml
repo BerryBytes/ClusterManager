@@ -4,4 +4,3 @@ SPDX-License-Identifier: APACHE-2.0
 */}}
 
 {{- include "rabbitmq.validateValues" . }}
-

@@ -9,4 +9,3 @@ export interface Data {
   actions: JSX.Element;
   download: JSX.Element;
 }
-

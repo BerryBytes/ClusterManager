@@ -178,7 +178,7 @@ if(subsCheck.user_groups.length === 0) return
       setClusterVersion(clusterVersionList[0]);
     }
   }, [clusterVersionList]);
-  
+
 
   return (
     <div className={classes.root}>
@@ -212,9 +212,9 @@ if(subsCheck.user_groups.length === 0) return
                   }
                 >
                   {subsCheck && subsCheck.user_groups?.length > 0
-                    ? 
+                    ?
                     "Your request has been received, waiting for admin approval"
-                    : 
+                    :
                     "You are not authorized to create cluster request for cluster creation"
                     }
                 </Alert>

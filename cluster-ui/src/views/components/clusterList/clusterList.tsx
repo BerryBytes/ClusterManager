@@ -125,7 +125,7 @@ export const ClusterList = () => {
   const refreshClusterList = () => {
     queryClient.invalidateQueries({ queryKey: ["clusterList"] });
   };
-  
+
   if (rest.fetchStatus === "fetching")
     return (
       <Box sx={{ height: 100, padding: 10 }}>
@@ -171,7 +171,7 @@ export const ClusterList = () => {
           handleClose={handleCloseDownloadDialog}
           handleClickOnDownloadConfig={handleClickOnDownloadConfig}
         />
-      
+
       </Box >
   </Box>
   );

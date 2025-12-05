@@ -4,7 +4,7 @@
 
 ### 🚀 Thank You for Contributing!
 
-_**You** Made It._  
+_**You** Made It._
 {: .subtitle}
 
 ClusterManager thrives because of its passionate community of contributors like **you**! Whether it's code, documentation, feedback, or simply sharing ClusterManager with others, your support has made it what it is today — a robust, open-source project used worldwide.
