@@ -15,6 +15,7 @@ ignore =
     B008
     B006
     C417
+    D100,D101,D102,D103,D104,D105,D106
 
 exclude =
     venv/

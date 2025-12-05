@@ -1,4 +1,4 @@
-# 📘 **Cluster API Documentation**
+## 📘 **Cluster API Documentation**
 
 Welcome to the **Cluster API** project! This documentation provides a comprehensive guide to set up, run, and leverage the power of FastAPI integrated with Dapr for seamless microservice communication. Follow the steps below to get started and enable message broker functionality using Dapr sidecars.
 

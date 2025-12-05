@@ -903,9 +903,9 @@ See the [Upgrading guide](https://www.rabbitmq.com/upgrade.html) and the [Rabbit
 - The layout of the persistent volumes has changed (if using persistence). Action is required if preserving data through the upgrade is desired:
   - The data has moved from `mnesia/` within the persistent volume to the root of the persistent volume
   - The `config/` and `schema/` directories within the persistent volume are no longer used
-  - An init container can be used to move and clean up the peristent volumes. An example can be found [here](https://github.com/bitnami/charts/issues/10913#issuecomment-1169619513).
+  - An init container can be used to move and clean up the persistent volumes. An example can be found [here](https://github.com/bitnami/charts/issues/10913#issuecomment-1169619513).
   - Alternately the value `persistence.subPath` can be overridden to be `mnesia` so that the directory layout is consistent with what it was previously.
-    - Note however that this will leave the unused `config/` and `schema/` directories within the peristent volume forever.
+    - Note however that this will leave the unused `config/` and `schema/` directories within the persistent volume forever.
 
 Consequences:
 
