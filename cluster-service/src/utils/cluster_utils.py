@@ -1,8 +1,12 @@
+"""Utility functions for managing Kubernetes clusters and vclusters."""
 import time
+
+from kubernetes import client
 from src.models.subscription import Subscription
-from kubernetes import client 
+
 
 def generate_vclusterYaml(name, namespace, host, kube_version):
+    """Generate the YAML configuration for a vcluster."""
     yaml_template = """
 apiVersion: infrastructure.cluster.x-k8s.io/v1alpha1
 kind: VCluster
@@ -40,9 +44,13 @@ spec:
           extraSANs:
           - {host}
 """
-    return yaml_template.format(name=name, namespace=namespace,host=host,kube_version=kube_version)
+    return yaml_template.format(
+        name=name, namespace=namespace, host=host, kube_version=kube_version
+    )
+
 
 def generate_cluster_yaml(name: str, namespace: str):
+    """Generate the YAML configuration for a Cluster."""
     yaml_template = """
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
@@ -64,7 +72,9 @@ spec:
         namespace=namespace,
     )
 
-def generate_resource_quota_yaml(subscription:Subscription ,namespace: str):
+
+def generate_resource_quota_yaml(subscription: Subscription, namespace: str):
+    """Generate the YAML configuration for a ResourceQuota based on subscription."""
     yaml_template = """
 apiVersion: v1
 kind: ResourceQuota
@@ -95,22 +105,28 @@ spec:
         node_ports=subscription.node_port,
     )
 
+
 def createNamespace(namespace_name):
+    """Create a Kubernetes namespace. Deletes it first if it already exists."""
     api_client = client.CoreV1Api()
     try:
         # Check if the namespace already exists
         try:
             api_client.read_namespace(name=namespace_name)
             print(f"Namespace '{namespace_name}' already exists. Deleting it...")
-            api_client.delete_namespace(name=namespace_name, body=client.V1DeleteOptions())
+            api_client.delete_namespace(
+                name=namespace_name, body=client.V1DeleteOptions()
+            )
             print(f"Namespace '{namespace_name}' deleted successfully.")
-            
+
             # Wait for the namespace to be fully deleted
             wait_for_namespace_deletion(namespace_name)
-        
+
         except client.rest.ApiException as e:
             if e.status == 404:
-                print(f"Namespace '{namespace_name}' does not exist. Proceeding to create it.")
+                print(
+                    f"Namespace '{namespace_name}' does not exist. Proceeding to create it."
+                )
             else:
                 raise e
         api_client.create_namespace(
@@ -121,10 +137,9 @@ def createNamespace(namespace_name):
         print(f"Error handling namespace '{namespace_name}': {str(e)}")
         raise e
 
+
 def wait_for_namespace_deletion(namespace_name):
-    """
-    Wait until the namespace is fully deleted.
-    """
+    """Wait until the namespace is fully deleted."""
     api_client = client.CoreV1Api()
 
     while True:
@@ -133,7 +148,7 @@ def wait_for_namespace_deletion(namespace_name):
             api_client.read_namespace(name=namespace_name)
             print(f"Namespace '{namespace_name}' is still being deleted. Waiting...")
             time.sleep(5)
-        
+
         except client.rest.ApiException as e:
             if e.status == 404:
                 print(f"Namespace '{namespace_name}' has been deleted successfully.")
@@ -141,9 +156,10 @@ def wait_for_namespace_deletion(namespace_name):
             else:
                 print(f"Error checking namespace '{namespace_name}': {str(e)}")
                 raise e
-        
+
 
 def add_labels_to_statefulset(namespace, sts_name, labels):
+    """Add labels to an existing Kubernetes StatefulSet."""
     try:
         apps_v1 = client.AppsV1Api()
 
@@ -152,10 +168,11 @@ def add_labels_to_statefulset(namespace, sts_name, labels):
         # Add labels to the StatefulSet's template metadata labels
         statefulset.spec.template.metadata.labels.update(labels)
         # statefulset.spec.template.metadata.annotations = annotations
-              
-        updated_statefulset = apps_v1.patch_namespaced_stateful_set(sts_name, namespace, statefulset)
-        
+
+        updated_statefulset = apps_v1.patch_namespaced_stateful_set(
+            sts_name, namespace, statefulset
+        )
+
         return updated_statefulset
     except Exception as e:
         return f"An error occurred: {e}"
-

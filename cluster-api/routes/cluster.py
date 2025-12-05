@@ -1,62 +1,108 @@
+"""
+Cluster API router for managing clusters.
+
+Includes endpoints for:
+- Creating, updating, deleting clusters
+- Generating kubeconfig
+- Starting, stopping clusters
+- Retrieving cluster info and status
+"""
+
 import json
 import logging
 import os
-from fastapi import APIRouter, Body, HTTPException, Request, Response, status
-from fastapi.encoders import jsonable_encoder
-from dapr.clients import DaprClient
-import requests
 from typing import List
 
+import requests
+from dapr.clients import DaprClient
 from dto.cluster_request import ClusterRequest
 from dto.cluster_response import ClusterResponse
 from dto.cluster_upgrade import ClusterUpgradeRequest
+from fastapi import APIRouter, Body, HTTPException, Request, Response, status
+from fastapi.encoders import jsonable_encoder
 from middleware.middleware import is_authenticated
 from models.cluster import Cluster
 from models.common_response import ResponseModel
 from models.generate_kubeconfig import GenerateKubeconfig
+from models.user import User
 from schemas.cluster_schema import clusters_serializer, is_valid_url_name
 from schemas.host_cluster_schema import host_clusters_serializer_test
 from schemas.subscription_schema import subscription_from_dict
-from utills.common_utills import extract_time_components, get_best_cluster
-from models.user import User
 from utills.common_response import debug_response, generate_response
+from utills.common_utills import extract_time_components, get_best_cluster
 
 router = APIRouter()
 
-@router.post("", response_description="Create a cluster", status_code=status.HTTP_201_CREATED, response_model={})
+
+@router.post(
+    "",
+    response_description="Create a cluster",
+    status_code=status.HTTP_201_CREATED,
+    response_model={},
+)
 def create_Cluster(request: Request, clusterRequest: ClusterRequest = Body(...)):
+    """
+    Create a new cluster in the system.
+
+    Validates the cluster name, user permissions, subscription,
+    and selects the best host cluster based on region. Publishes
+    cluster creation event via Dapr.
+    """
     name_status, error_message = is_valid_url_name(clusterRequest.name)
     authorization_header = request.headers.get("Authorization", "")
     token = authorization_header.split("Bearer ")[1]
     user_info = is_authenticated(token)
     # checking create 'create-cluster' role is assign to the user.
-    if user_info and 'realm_access' in user_info:
-        realm_roles = user_info['realm_access']['roles']
-        if 'create-cluster' not in realm_roles:
+    if user_info and "realm_access" in user_info:
+        realm_roles = user_info["realm_access"]["roles"]
+        if "create-cluster" not in realm_roles:
             # If the user does not have the 'create-cluster' role
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not allowed to create clusters")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User is not allowed to create clusters",
+            )
     if name_status is False and error_message is not None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_message)
-    createdCluster = request.app.database["cluster"].find_one({"name": clusterRequest.name})
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
+        )
+    createdCluster = request.app.database["cluster"].find_one(
+        {"name": clusterRequest.name}
+    )
     if createdCluster is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Cluster with name {clusterRequest.name} already exist")
-    subscription = request.app.database["subscription"].find_one({"_id": clusterRequest.subscriptionId})
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Cluster with name {clusterRequest.name} already exist",
+        )
+    subscription = request.app.database["subscription"].find_one(
+        {"_id": clusterRequest.subscriptionId}
+    )
     if subscription is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Subscription with ID {clusterRequest.subscriptionId} not found")
-    host_cluster_reponse = request.app.database["hostCluster"].find({"region": clusterRequest.region})
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Subscription with ID {clusterRequest.subscriptionId} not found",
+        )
+    host_cluster_reponse = request.app.database["hostCluster"].find(
+        {"region": clusterRequest.region}
+    )
     hostClusters = host_clusters_serializer_test(json.dumps(list(host_cluster_reponse)))
     if len(list(hostClusters)) == 0:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"hostCluster not found within the region {clusterRequest.region}")
-    
-    host_cluster_ids = list(map(lambda x: x['id'], hostClusters))
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"hostCluster not found within the region {clusterRequest.region}",
+        )
+
+    host_cluster_ids = list(map(lambda x: x["id"], hostClusters))
 
     best_cluster_id = get_best_cluster(host_cluster_ids)
     best_cluster_name = ""
     for obj in hostClusters:
-        if obj['id'] == best_cluster_id:
-            best_cluster_name = obj['name']
+        if obj["id"] == best_cluster_id:
+            best_cluster_name = obj["name"]
     if best_cluster_name == "":
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"hostCluster not found within the region {clusterRequest.region}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"hostCluster not found within the region {clusterRequest.region}",
+        )
 
     user_obj: User = request.state.user
 
@@ -81,7 +127,7 @@ def create_Cluster(request: Request, clusterRequest: ClusterRequest = Body(...))
                 "subscription": subscription,
                 "host_cluster_id": best_cluster_id,
                 "host_cluster_name": best_cluster_name,
-                "cluster": created_cluster
+                "cluster": created_cluster,
             }
             client.publish_event(
                 pubsub_name="messagebus",
@@ -90,39 +136,78 @@ def create_Cluster(request: Request, clusterRequest: ClusterRequest = Body(...))
                 data_content_type="application/json",
             )
             logging.info("Published data from create cluster :: %s", str(payload))
-        return{"success": True,
-        "code": status.HTTP_200_OK,
-        "message": "Clusters listed successfully",
-        "data": created_cluster
+        return {
+            "success": True,
+            "code": status.HTTP_200_OK,
+            "message": "Clusters listed successfully",
+            "data": created_cluster,
         }
     except Exception as e:
         debug_response(e, "Error occurs on creating cluster", "error")
-        return generate_response(False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to create cluster", None)
+        return generate_response(
+            False,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "Failed to create cluster",
+            None,
+        )
 
-@router.put("/upgrade/{id}", response_description="Update a cluster", status_code=status.HTTP_200_OK, response_model=ResponseModel)
-def update_cluster(id: str, request: Request, clusterUpgradeRequest: ClusterUpgradeRequest = Body(...)):
+
+@router.put(
+    "/upgrade/{id}",
+    response_description="Update a cluster",
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseModel,
+)
+def update_cluster(
+    id: str, request: Request, clusterUpgradeRequest: ClusterUpgradeRequest = Body(...)
+):
+    """
+    Upgrade a cluster's Kubernetes version.
+
+    Checks that the new version is higher than the current one,
+    updates the cluster, and publishes the upgrade event.
+    """
     kube_version = clusterUpgradeRequest.kube_version
     cluster = request.app.database["cluster"].find_one({"_id": id})
     if cluster is None:
-        return generate_response(False, status.HTTP_404_NOT_FOUND, f"Cluster with ID {id} not found", None)
+        return generate_response(
+            False, status.HTTP_404_NOT_FOUND, f"Cluster with ID {id} not found", None
+        )
 
-    current_version_parts = list(map(int, cluster["kube_version"].split("v")[1].split(".")))
+    current_version_parts = list(
+        map(int, cluster["kube_version"].split("v")[1].split("."))
+    )
     new_version_parts = list(map(int, kube_version.split("v")[1].split(".")))
 
     if new_version_parts <= current_version_parts:
-        return generate_response(False, status.HTTP_400_BAD_REQUEST, "Kube version can only be upgraded", None)
+        return generate_response(
+            False,
+            status.HTTP_400_BAD_REQUEST,
+            "Kube version can only be upgraded",
+            None,
+        )
 
-    host_data = request.app.database["hostCluster"].find_one({"_id": cluster["host_cluster_id"]})
+    host_data = request.app.database["hostCluster"].find_one(
+        {"_id": cluster["host_cluster_id"]}
+    )
     if host_data is None:
-        return generate_response(False, status.HTTP_404_NOT_FOUND, "Host cluster data not found", None)
+        return generate_response(
+            False, status.HTTP_404_NOT_FOUND, "Host cluster data not found", None
+        )
 
-    subscription = request.app.database["subscription"].find_one({"_id": cluster["subscription_id"]})
+    subscription = request.app.database["subscription"].find_one(
+        {"_id": cluster["subscription_id"]}
+    )
     if subscription is None:
-        return generate_response(False, status.HTTP_404_NOT_FOUND, f"Subscription with ID {cluster['subscription_id']} not found", None)
+        return generate_response(
+            False,
+            status.HTTP_404_NOT_FOUND,
+            f"Subscription with ID {cluster['subscription_id']} not found",
+            None,
+        )
 
     request.app.database["cluster"].update_one(
-        {"_id": id},
-        {"$set": {"kube_version": kube_version, "status": "Updating"}}
+        {"_id": id}, {"$set": {"kube_version": kube_version, "status": "Updating"}}
     )
 
     find_cluster = request.app.database["cluster"].find_one({"_id": id})
@@ -144,26 +229,58 @@ def update_cluster(id: str, request: Request, clusterUpgradeRequest: ClusterUpgr
                 data_content_type="application/json",
             )
             logging.info("Published data for cluster update: %s", payload)
-        return generate_response(True, status.HTTP_200_OK, "Cluster updated successfully", update_cluster)
+        return generate_response(
+            True, status.HTTP_200_OK, "Cluster updated successfully", update_cluster
+        )
     except Exception as e:
         debug_response(e, "Error occurs on updating cluster", "error")
-        return generate_response(False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to update cluster", None)
+        return generate_response(
+            False,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "Failed to update cluster",
+            None,
+        )
 
-@router.post("/generate-config", response_description="Generate KubeConfig", status_code=status.HTTP_200_OK)
-def generate_kube_config(request: Request, generateKubeconfig: GenerateKubeconfig = Body(...)):
+
+@router.post(
+    "/generate-config",
+    response_description="Generate KubeConfig",
+    status_code=status.HTTP_200_OK,
+)
+def generate_kube_config(
+    request: Request, generateKubeconfig: GenerateKubeconfig = Body(...)
+):
+    """
+    Generate a KubeConfig file for a cluster.
+
+    Validates expiration time, fetches cluster data, and requests
+    kubeconfig from the cluster service. Returns as attachment.
+    """
 
     if extract_time_components(generateKubeconfig.expiryTime) is None:
-        return generate_response(False, status.HTTP_400_BAD_REQUEST, "Incorrect expiration time format", [])
-    
+        return generate_response(
+            False, status.HTTP_400_BAD_REQUEST, "Incorrect expiration time format", []
+        )
+
     expirationTime = extract_time_components(generateKubeconfig.expiryTime)
 
     if expirationTime < 600:
-        return generate_response(False, status.HTTP_400_BAD_REQUEST, "Expiration time shouldn't be less than 10 min", [])
+        return generate_response(
+            False,
+            status.HTTP_400_BAD_REQUEST,
+            "Expiration time shouldn't be less than 10 min",
+            [],
+        )
 
     clusterId = generateKubeconfig.clusterId
     cluster = request.app.database["cluster"].find_one({"_id": clusterId})
     if cluster is None:
-        return generate_response(False, status.HTTP_404_NOT_FOUND, f"Cluster with ID {clusterId} not found", [])
+        return generate_response(
+            False,
+            status.HTTP_404_NOT_FOUND,
+            f"Cluster with ID {clusterId} not found",
+            [],
+        )
 
     name = cluster["name"]
     hostClusterId = cluster["host_cluster_id"]
@@ -171,42 +288,81 @@ def generate_kube_config(request: Request, generateKubeconfig: GenerateKubeconfi
     payload = {
         "name": name,
         "hostClusterId": hostClusterId,
-        "expirationTime": expirationTime
+        "expirationTime": expirationTime,
     }
-    baseUrl = os.getenv('SERVICE_URL')
+    baseUrl = os.getenv("SERVICE_URL")
 
     response = requests.post(baseUrl + "/generate-config", json=payload)
     if response.status_code == 200:  # Check if the request was successful
         debug_response(response.json(), "Response from generate-config", "info")
         responseBody = response.json()
-        with open('file/kubeconfig') as f:
-            kubeconfig_file = f.read().format(cluster=responseBody["cluster"], clusterCerts=responseBody["clusterCerts"], token=responseBody["token"], server=responseBody["server"])
+        with open("file/kubeconfig") as f:
+            kubeconfig_file = f.read().format(
+                cluster=responseBody["cluster"],
+                clusterCerts=responseBody["clusterCerts"],
+                token=responseBody["token"],
+                server=responseBody["server"],
+            )
 
-            response = Response(content=kubeconfig_file, media_type='text/yaml')
-            response.headers['Content-Disposition'] = f'attachment; filename=kubeconfig.yaml'
+            response = Response(content=kubeconfig_file, media_type="text/yaml")
+            response.headers[
+                "Content-Disposition"
+            ] = f"attachment; filename=kubeconfig.yaml"
             return response
     else:
-        debug_response(response.json(), "Error occurs on generating kubeconfig", "error")
-        return generate_response(False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error", [])
+        debug_response(
+            response.json(), "Error occurs on generating kubeconfig", "error"
+        )
+        return generate_response(
+            False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error", []
+        )
+
 
 @router.get("/{id}", response_description="Get a cluster by id", response_model={})
 def find_cluster(id: str, request: Request):
+    """
+    Retrieve detailed information about a cluster by its ID.
+
+    Returns the cluster info along with associated user, subscription,
+    and host cluster data.
+    """
     try:
         cluster = request.app.database["cluster"].find_one({"_id": id})
         if cluster is None:
-            return generate_response(False, status.HTTP_404_NOT_FOUND, f"Cluster with ID {id} not found", None)
+            return generate_response(
+                False,
+                status.HTTP_404_NOT_FOUND,
+                f"Cluster with ID {id} not found",
+                None,
+            )
 
         user = request.app.database["user"].find_one({"_id": cluster["user_id"]})
         if user is None:
-            return generate_response(False, status.HTTP_404_NOT_FOUND, f"User with ID {id} not found", None)
+            return generate_response(
+                False, status.HTTP_404_NOT_FOUND, f"User with ID {id} not found", None
+            )
 
-        subscription = request.app.database["subscription"].find_one({"_id": cluster["subscription_id"]})
+        subscription = request.app.database["subscription"].find_one(
+            {"_id": cluster["subscription_id"]}
+        )
         if subscription is None:
-            return generate_response(False, status.HTTP_404_NOT_FOUND, f"Subscription with ID {id} not found", None )
+            return generate_response(
+                False,
+                status.HTTP_404_NOT_FOUND,
+                f"Subscription with ID {id} not found",
+                None,
+            )
 
-        host_cluster = request.app.database["hostCluster"].find_one({"_id": cluster["host_cluster_id"]})
+        host_cluster = request.app.database["hostCluster"].find_one(
+            {"_id": cluster["host_cluster_id"]}
+        )
         if host_cluster is None:
-            return generate_response(False, status.HTTP_404_NOT_FOUND, f"HostCluster with ID {id} not found", None)
+            return generate_response(
+                False,
+                status.HTTP_404_NOT_FOUND,
+                f"HostCluster with ID {id} not found",
+                None,
+            )
 
         response = ClusterResponse(
             id=cluster["_id"],
@@ -216,18 +372,33 @@ def find_cluster(id: str, request: Request):
             kube_version=cluster["kube_version"],
             user=user,
             subscription=subscription,
-            hostCluster=host_cluster
+            hostCluster=host_cluster,
         )
-        return{"success": True,
-        "code": status.HTTP_200_OK,
-        "message": "Clusters found successfully",
-        "data": response
+        return {
+            "success": True,
+            "code": status.HTTP_200_OK,
+            "message": "Clusters found successfully",
+            "data": response,
         }
     except Exception as e:
         debug_response(e, "Error occurs on retrieving cluster", "error")
-        return generate_response(False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to retrieve cluster", None)
+        return generate_response(
+            False,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "Failed to retrieve cluster",
+            None,
+        )
 
-def get_and_update_status_async(clusters: List[ClusterResponse], request: Request,response_model: ResponseModel):
+
+def get_and_update_status_async(
+    clusters: List[ClusterResponse], request: Request, response_model: ResponseModel
+):
+    """
+    Fetch and update cluster status asynchronously.
+
+    Iterates over provided clusters, retrieves current status, and updates database.
+    Returns success or failure for the first cluster processed.
+    """
     for cluster in clusters:
         try:
             status = get_status(cluster.name, cluster.hostCluster.id)
@@ -239,22 +410,41 @@ def get_and_update_status_async(clusters: List[ClusterResponse], request: Reques
                 # Define the update operation using $set to update a single field
                 update = {"$set": {"status": status.json()["status"]}}
                 request.app.database["cluster"].update_one(filter, update)
-                return generate_response(True, status.HTTP_200_OK, "Cluster status updated", [])
+                return generate_response(
+                    True, status.HTTP_200_OK, "Cluster status updated", []
+                )
         except Exception as e:
             debug_response(e, "Error occurs on fetching status of cluster", "error")
-            return generate_response(False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to fetch status of cluster", [])
+            return generate_response(
+                False,
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "Failed to fetch status of cluster",
+                [],
+            )
+
 
 @router.get("", response_description="List all cluster", response_model={})
 def list_Clusters(request: Request):
+    """
+    List all clusters for the authenticated user.
+
+    Returns basic cluster info along with subscription and host cluster data.
+    """
     try:
         user_obj: User = request.state.user
         print("USER_OBJ :: ", user_obj.id)
-        clusters = list(request.app.database["cluster"].find({"user_id": user_obj.id}).limit(10))
+        clusters = list(
+            request.app.database["cluster"].find({"user_id": user_obj.id}).limit(10)
+        )
         print("Clusters :: ", clusters)
         responses = []
         for cluster in clusters:
-            host_cluster = request.app.database["hostCluster"].find_one({"_id": cluster["host_cluster_id"]})
-            subscription = request.app.database["subscription"].find_one({"_id": cluster["subscription_id"]})
+            host_cluster = request.app.database["hostCluster"].find_one(
+                {"_id": cluster["host_cluster_id"]}
+            )
+            subscription = request.app.database["subscription"].find_one(
+                {"_id": cluster["subscription_id"]}
+            )
             if host_cluster is not None and subscription is not None:
                 response = ClusterResponse(
                     id=cluster["_id"],
@@ -264,65 +454,125 @@ def list_Clusters(request: Request):
                     status=cluster["status"],
                     name=cluster["name"],
                     kube_version=cluster["kube_version"],
-                    hostCluster=host_cluster
+                    hostCluster=host_cluster,
                 )
                 responses.append(response)
-        return{"success": True,
-        "code": status.HTTP_200_OK,
-        "message": "Clusters listed successfully",
-        "data": responses
+        return {
+            "success": True,
+            "code": status.HTTP_200_OK,
+            "message": "Clusters listed successfully",
+            "data": responses,
         }
     except Exception as e:
         debug_response(e, "Error occurs on listing clusters", "error")
-        return generate_response(False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to list clusters", [])
+        return generate_response(
+            False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to list clusters", []
+        )
 
-@router.get("/{id}/status", response_description="Get a cluster by id", response_model=ResponseModel)
+
+@router.get(
+    "/{id}/status",
+    response_description="Get a cluster by id",
+    response_model=ResponseModel,
+)
 def get_cluster_status(id: str, request: Request):
+    """Retrieve the status of a specific cluster by its ID."""
     try:
         cluster = request.app.database["cluster"].find_one({"_id": id})
         if cluster is None:
-            return generate_response(False, status.HTTP_404_NOT_FOUND, f"Cluster with ID {id} not found", None)
+            return generate_response(
+                False,
+                status.HTTP_404_NOT_FOUND,
+                f"Cluster with ID {id} not found",
+                None,
+            )
 
         user = request.app.database["user"].find_one({"_id": cluster["user_id"]})
         if user is None:
-            return generate_response(False, status.HTTP_404_NOT_FOUND, f"User with ID {id} not found", None)
+            return generate_response(
+                False, status.HTTP_404_NOT_FOUND, f"User with ID {id} not found", None
+            )
 
-        host_cluster = request.app.database["hostCluster"].find_one({"_id": cluster["host_cluster_id"]})
+        host_cluster = request.app.database["hostCluster"].find_one(
+            {"_id": cluster["host_cluster_id"]}
+        )
         if host_cluster is None:
-            return generate_response(False, status.HTTP_404_NOT_FOUND, f"HostCluster with ID {id} not found", None)
+            return generate_response(
+                False,
+                status.HTTP_404_NOT_FOUND,
+                f"HostCluster with ID {id} not found",
+                None,
+            )
 
         response = get_status(cluster["name"], host_cluster["_id"])
         if response.status_code == 200:
-            return generate_response(True, status.HTTP_200_OK, "Cluster status retrieved", response.json())
+            return generate_response(
+                True, status.HTTP_200_OK, "Cluster status retrieved", response.json()
+            )
         else:
-            return generate_response(False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Internal server error", None)
+            return generate_response(
+                False,
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "Internal server error",
+                None,
+            )
     except Exception as e:
         debug_response(e, "Error occurs on retrieving cluster status", "error")
-        return generate_response(False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to retrieve cluster status", None)
+        return generate_response(
+            False,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "Failed to retrieve cluster status",
+            None,
+        )
+
 
 def get_status(name: str, hostClusterId):
+    """Request cluster status from host cluster service."""
     payload = {
         "name": name,
         "hostClusterId": hostClusterId,
     }
-    baseUrl = os.getenv('SERVICE_URL')
+    baseUrl = os.getenv("SERVICE_URL")
     return requests.post(baseUrl + "/host-cluster/cluster/status", json=payload)
 
-@router.patch("/{id}/start", response_description="Start cluster by id", status_code=status.HTTP_200_OK, response_model=ResponseModel)
+
+@router.patch(
+    "/{id}/start",
+    response_description="Start cluster by id",
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseModel,
+)
 def start_cluster(id: str, request: Request):
+    """
+    Start a cluster by its ID.
+
+    Publishes a 'cluster-start' event via Dapr.
+    """
     try:
         cluster = request.app.database["cluster"].find_one({"_id": id})
         if cluster is None:
-            return generate_response(False, status.HTTP_404_NOT_FOUND, f"Cluster with ID {id} not found", None)
+            return generate_response(
+                False,
+                status.HTTP_404_NOT_FOUND,
+                f"Cluster with ID {id} not found",
+                None,
+            )
 
-        host_cluster = request.app.database["hostCluster"].find_one({"_id": cluster["host_cluster_id"]})
+        host_cluster = request.app.database["hostCluster"].find_one(
+            {"_id": cluster["host_cluster_id"]}
+        )
         if host_cluster is None:
-            return generate_response(False, status.HTTP_404_NOT_FOUND, f"HostCluster with ID {id} not found", None)
+            return generate_response(
+                False,
+                status.HTTP_404_NOT_FOUND,
+                f"HostCluster with ID {id} not found",
+                None,
+            )
 
         with DaprClient() as client:
             payload = {
                 "host_cluster_id": host_cluster["_id"],
-                "cluster_name": cluster["name"]
+                "cluster_name": cluster["name"],
             }
             client.publish_event(
                 pubsub_name="messagebus",
@@ -332,26 +582,56 @@ def start_cluster(id: str, request: Request):
             )
             logging.info("Published data: " + json.dumps(payload))
             debug_response(payload, "Published data", "info")
-        return generate_response(True, status.HTTP_200_OK, "Sent command for starting cluster", None)
+        return generate_response(
+            True, status.HTTP_200_OK, "Sent command for starting cluster", None
+        )
     except Exception as e:
         debug_response(e, "Error occurs on starting cluster", "error")
-        return generate_response(False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to start cluster", None)
+        return generate_response(
+            False,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "Failed to start cluster",
+            None,
+        )
 
-@router.patch("/{id}/stop", response_description="Stop cluster by id", status_code=status.HTTP_200_OK, response_model=ResponseModel)
+
+@router.patch(
+    "/{id}/stop",
+    response_description="Stop cluster by id",
+    status_code=status.HTTP_200_OK,
+    response_model=ResponseModel,
+)
 def stop_cluster(id: str, request: Request):
+    """
+    Stop a cluster by its ID.
+
+    Publishes a 'cluster-stop' event via Dapr.
+    """
     try:
         cluster = request.app.database["cluster"].find_one({"_id": id})
         if cluster is None:
-            return generate_response(False, status.HTTP_404_NOT_FOUND, f"Cluster with ID {id} not found", None)
+            return generate_response(
+                False,
+                status.HTTP_404_NOT_FOUND,
+                f"Cluster with ID {id} not found",
+                None,
+            )
 
-        host_cluster = request.app.database["hostCluster"].find_one({"_id": cluster["host_cluster_id"]})
+        host_cluster = request.app.database["hostCluster"].find_one(
+            {"_id": cluster["host_cluster_id"]}
+        )
         if host_cluster is None:
-            return generate_response(False, status.HTTP_404_NOT_FOUND, f"HostCluster with ID {id} not found", None)
+            return generate_response(
+                False,
+                status.HTTP_404_NOT_FOUND,
+                f"HostCluster with ID {id} not found",
+                None,
+            )
 
         with DaprClient() as client:
             payload = {
                 "host_cluster_id": host_cluster["_id"],
-                "cluster_name": cluster["name"]
+                "cluster_name": cluster["name"],
             }
             client.publish_event(
                 pubsub_name="messagebus",
@@ -361,21 +641,48 @@ def stop_cluster(id: str, request: Request):
             )
             logging.info("Published data: " + json.dumps(payload))
             debug_response(payload, "Published data", "info")
-        return generate_response(True, status.HTTP_200_OK, "Sent command for stopping cluster", None)
+        return generate_response(
+            True, status.HTTP_200_OK, "Sent command for stopping cluster", None
+        )
     except Exception as e:
         debug_response(e, "Error occurs on stopping cluster", "error")
-        return generate_response(False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to stop cluster", None)
+        return generate_response(
+            False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to stop cluster", None
+        )
 
-@router.delete("/{id}", response_description="Delete cluster by id", status_code=status.HTTP_202_ACCEPTED, response_model=ResponseModel)
+
+@router.delete(
+    "/{id}",
+    response_description="Delete cluster by id",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=ResponseModel,
+)
 def delete_cluster(id: str, request: Request, response: Response):
+    """
+    Delete a cluster by its ID.
+
+    Publishes a 'cluster-delete' event via Dapr if deletion succeeds.
+    """
     try:
         cluster = request.app.database["cluster"].find_one({"_id": id})
         if cluster is None:
-            return generate_response(False, status.HTTP_404_NOT_FOUND, f"Cluster with ID {id} not found", None)
+            return generate_response(
+                False,
+                status.HTTP_404_NOT_FOUND,
+                f"Cluster with ID {id} not found",
+                None,
+            )
 
-        host_cluster = request.app.database["hostCluster"].find_one({"_id": cluster["host_cluster_id"]})
+        host_cluster = request.app.database["hostCluster"].find_one(
+            {"_id": cluster["host_cluster_id"]}
+        )
         if host_cluster is None:
-            return generate_response(False, status.HTTP_404_NOT_FOUND, f"HostCluster with ID {id} not found", None)
+            return generate_response(
+                False,
+                status.HTTP_404_NOT_FOUND,
+                f"HostCluster with ID {id} not found",
+                None,
+            )
 
         delete_result = request.app.database["cluster"].delete_one({"_id": id})
         if delete_result.deleted_count == 1:
@@ -383,7 +690,7 @@ def delete_cluster(id: str, request: Request, response: Response):
                 with DaprClient() as client:
                     payload = {
                         "host_cluster_id": host_cluster["_id"],
-                        "cluster_name": cluster["name"]
+                        "cluster_name": cluster["name"],
                     }
                     client.publish_event(
                         pubsub_name="messagebus",
@@ -391,11 +698,28 @@ def delete_cluster(id: str, request: Request, response: Response):
                         data=json.dumps(payload),
                         data_content_type="application/json",
                     )
-                return generate_response(True, status.HTTP_202_ACCEPTED, f"Cluster with ID {id} deleted", None)
+                return generate_response(
+                    True,
+                    status.HTTP_202_ACCEPTED,
+                    f"Cluster with ID {id} deleted",
+                    None,
+                )
             except Exception as e:
                 debug_response(e, "Error occurs on publishing delete event", "error")
-                return generate_response(False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to publish delete event", None)
-        return generate_response(False, status.HTTP_404_NOT_FOUND, f"Cluster with ID {id} not found", None)
+                return generate_response(
+                    False,
+                    status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "Failed to publish delete event",
+                    None,
+                )
+        return generate_response(
+            False, status.HTTP_404_NOT_FOUND, f"Cluster with ID {id} not found", None
+        )
     except Exception as e:
         debug_response(e, "Error occurs on deleting cluster", "error")
-        return generate_response(False, status.HTTP_500_INTERNAL_SERVER_ERROR, "Failed to delete cluster", None)
+        return generate_response(
+            False,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "Failed to delete cluster",
+            None,
+        )

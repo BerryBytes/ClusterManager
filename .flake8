@@ -1,0 +1,24 @@
+[flake8]
+max-line-length = 120
+
+ignore =
+    F401
+    F541
+    F841
+    F821
+    E501
+    D202
+    D205
+    D400
+    D401
+    D403
+    B008
+    B006
+    C417
+
+exclude =
+    venv/
+    __pycache__/
+    migrations/
+    .git/
+    .idea/

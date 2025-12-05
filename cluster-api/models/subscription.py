@@ -1,10 +1,14 @@
-from datetime import datetime
+"""Model representing a subscription plan and its resource limits."""
 import uuid
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
 class Subscription(BaseModel):
-    id: str = Field(default_factory=uuid.uuid4,alias="_id")
+    """Represents a subscription with resource quotas and utility methods."""
+
+    id: str = Field(default_factory=uuid.uuid4, alias="_id")
     name: str = Field(...)
     pods: int = Field(...)
     service: int = Field(...)
@@ -18,6 +22,7 @@ class Subscription(BaseModel):
     updated: datetime = Field(default_factory=datetime.now)
 
     def is_subscription_upgrade(self, new_plan):
+        """Determine if the new plan exceeds current resource allocations."""
         if new_plan.pods > self.pods:
             return True
         if new_plan.service > self.service:
@@ -37,17 +42,19 @@ class Subscription(BaseModel):
         return False
 
     class Config:
+        """Pydantic configuration for field population and schema examples."""
+
         allow_population_by_field_name = True
         schema_extra = {
-            "example":{
+            "example": {
                 "name": "basic",
-                "pods":5,
-                "service":5,
-                "config_map":5,
-                "persistance_vol_claims":5,
-                "replication_ctl":5,
-                "secrets":5,
-                "loadbalancer":5,
-                "node_port":5
+                "pods": 5,
+                "service": 5,
+                "config_map": 5,
+                "persistance_vol_claims": 5,
+                "replication_ctl": 5,
+                "secrets": 5,
+                "loadbalancer": 5,
+                "node_port": 5,
             }
-        }        
+        }

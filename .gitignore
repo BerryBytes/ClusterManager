@@ -1,3 +1,4 @@
 # Distribution / packaging
 .Pytho
 .vscode
+venv/
