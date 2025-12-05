@@ -13,21 +13,21 @@ export const App = () => {
         <Switch>
           <GateWay path="/" privateRoute={true} exact component={HomePage} />
           <Route path="/signin/identifier" component={OauthPage} />
-    
+
           <GateWay
             path="/login"
             privateRoute={false}
             exact
             component={LoginPage}
           ></GateWay>
-          
+
           <GateWay
             path="/cluster/:id"
             privateRoute={true}
             exact
             component={ClusterInfo}
           ></GateWay>
-           
+
           <Route component={NoMatch}>
 
           </Route>

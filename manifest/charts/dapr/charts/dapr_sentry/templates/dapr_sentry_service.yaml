@@ -11,5 +11,5 @@ spec:
     app: dapr-sentry
   ports:
   - protocol: TCP
-    port: {{ .Values.ports.port }} 
-    targetPort: {{ .Values.ports.targetPort }}  
+    port: {{ .Values.ports.port }}
+    targetPort: {{ .Values.ports.targetPort }}

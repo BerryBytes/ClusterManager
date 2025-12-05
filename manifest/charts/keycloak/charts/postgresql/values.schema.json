@@ -1,156 +1,156 @@
 {
   "$schema": "http://json-schema.org/schema#",
-  "type": "object",
   "properties": {
     "architecture": {
-      "type": "string",
-      "title": "PostgreSQL architecture",
+      "description": "Allowed values: `standalone` or `replication`",
       "form": true,
-      "description": "Allowed values: `standalone` or `replication`"
+      "title": "PostgreSQL architecture",
+      "type": "string"
     },
     "auth": {
-      "type": "object",
-      "title": "Authentication configuration",
       "form": true,
       "properties": {
-        "enablePostgresUser": {
-          "type": "boolean",
-          "title": "Enable \"postgres\" admin user",
-          "description": "Assign a password to the \"postgres\" admin user. Otherwise, remote access will be blocked for this user",
-          "form": true
-        },
-        "postgresPassword": {
-          "type": "string",
-          "title": "Password for the \"postgres\" admin user",
-          "description": "Defaults to a random 10-character alphanumeric string if not set",
-          "form": true
-        },
         "database": {
-          "type": "string",
-          "title": "PostgreSQL custom database",
           "description": "Name of the custom database to be created during the 1st initialization of PostgreSQL",
-          "form": true
+          "form": true,
+          "title": "PostgreSQL custom database",
+          "type": "string"
         },
-        "username": {
-          "type": "string",
-          "title": "PostgreSQL custom user",
-          "description": "Name of the custom user to be created during the 1st initialization of PostgreSQL. This user only has permissions on the PostgreSQL custom database",
-          "form": true
+        "enablePostgresUser": {
+          "description": "Assign a password to the \"postgres\" admin user. Otherwise, remote access will be blocked for this user",
+          "form": true,
+          "title": "Enable \"postgres\" admin user",
+          "type": "boolean"
         },
         "password": {
-          "type": "string",
-          "title": "Password for the custom user to create",
           "description": "Defaults to a random 10-character alphanumeric string if not set",
-          "form": true
+          "form": true,
+          "title": "Password for the custom user to create",
+          "type": "string"
+        },
+        "postgresPassword": {
+          "description": "Defaults to a random 10-character alphanumeric string if not set",
+          "form": true,
+          "title": "Password for the \"postgres\" admin user",
+          "type": "string"
+        },
+        "replicationPassword": {
+          "description": "Defaults to a random 10-character alphanumeric string if not set",
+          "form": true,
+          "hidden": {
+            "path": "architecture",
+            "value": "standalone"
+          },
+          "title": "Password for PostgreSQL replication user",
+          "type": "string"
         },
         "replicationUsername": {
-          "type": "string",
-          "title": "PostgreSQL replication user",
           "description": "Name of user used to manage replication.",
           "form": true,
           "hidden": {
-            "value": "standalone",
-            "path": "architecture"
-          }
+            "path": "architecture",
+            "value": "standalone"
+          },
+          "title": "PostgreSQL replication user",
+          "type": "string"
         },
-        "replicationPassword": {
-          "type": "string",
-          "title": "Password for PostgreSQL replication user",
-          "description": "Defaults to a random 10-character alphanumeric string if not set",
+        "username": {
+          "description": "Name of the custom user to be created during the 1st initialization of PostgreSQL. This user only has permissions on the PostgreSQL custom database",
           "form": true,
-          "hidden": {
-            "value": "standalone",
-            "path": "architecture"
-          }
+          "title": "PostgreSQL custom user",
+          "type": "string"
         }
-      }
+      },
+      "title": "Authentication configuration",
+      "type": "object"
+    },
+    "metrics": {
+      "properties": {
+        "enabled": {
+          "form": true,
+          "title": "Configure metrics exporter",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
     },
     "persistence": {
-      "type": "object",
       "properties": {
         "size": {
-          "type": "string",
-          "title": "Persistent Volume Size",
           "form": true,
           "render": "slider",
-          "sliderMin": 1,
           "sliderMax": 100,
-          "sliderUnit": "Gi"
+          "sliderMin": 1,
+          "sliderUnit": "Gi",
+          "title": "Persistent Volume Size",
+          "type": "string"
         }
-      }
+      },
+      "type": "object"
+    },
+    "replication": {
+      "form": true,
+      "properties": {
+        "enabled": {
+          "form": true,
+          "title": "Enable Replication",
+          "type": "boolean"
+        },
+        "readReplicas": {
+          "form": true,
+          "hidden": {
+            "path": "architecture",
+            "value": "standalone"
+          },
+          "title": "read Replicas",
+          "type": "integer"
+        }
+      },
+      "title": "Replication Details",
+      "type": "object"
     },
     "resources": {
-      "type": "object",
-      "title": "Required Resources",
       "description": "Configure resource requests",
       "form": true,
       "properties": {
         "requests": {
-          "type": "object",
           "properties": {
-            "memory": {
-              "type": "string",
-              "form": true,
-              "render": "slider",
-              "title": "Memory Request",
-              "sliderMin": 10,
-              "sliderMax": 2048,
-              "sliderUnit": "Mi"
-            },
             "cpu": {
-              "type": "string",
               "form": true,
               "render": "slider",
-              "title": "CPU Request",
-              "sliderMin": 10,
               "sliderMax": 2000,
-              "sliderUnit": "m"
+              "sliderMin": 10,
+              "sliderUnit": "m",
+              "title": "CPU Request",
+              "type": "string"
+            },
+            "memory": {
+              "form": true,
+              "render": "slider",
+              "sliderMax": 2048,
+              "sliderMin": 10,
+              "sliderUnit": "Mi",
+              "title": "Memory Request",
+              "type": "string"
             }
-          }
+          },
+          "type": "object"
         }
-      }
-    },
-    "replication": {
-      "type": "object",
-      "form": true,
-      "title": "Replication Details",
-      "properties": {
-        "enabled": {
-          "type": "boolean",
-          "title": "Enable Replication",
-          "form": true
-        },
-        "readReplicas": {
-          "type": "integer",
-          "title": "read Replicas",
-          "form": true,
-          "hidden": {
-            "value": "standalone",
-            "path": "architecture"
-          }
-        }
-      }
+      },
+      "title": "Required Resources",
+      "type": "object"
     },
     "volumePermissions": {
-      "type": "object",
       "properties": {
         "enabled": {
-          "type": "boolean",
+          "description": "Change the owner of the persist volume mountpoint to RunAsUser:fsGroup",
           "form": true,
           "title": "Enable Init Containers",
-          "description": "Change the owner of the persist volume mountpoint to RunAsUser:fsGroup"
+          "type": "boolean"
         }
-      }
-    },
-    "metrics": {
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "type": "boolean",
-          "title": "Configure metrics exporter",
-          "form": true
-        }
-      }
+      },
+      "type": "object"
     }
-  }
+  },
+  "type": "object"
 }

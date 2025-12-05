@@ -85,7 +85,7 @@ Next, execute the tests with the following commands:
 ```shell
 docker run -it --rm -v "${PWD}:/test" vault-helm-test bats /test/test/unit
 ```
-It's possible to only run specific bats tests using regular expressions. 
+It's possible to only run specific bats tests using regular expressions.
 For example, the following will run only tests with "injector" in the name:
 ```shell
 docker run -it --rm -v "${PWD}:/test" vault-helm-test bats /test/test/unit -f "injector"

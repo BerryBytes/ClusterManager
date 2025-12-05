@@ -73,7 +73,7 @@ spec:
               app.kubernetes.io/component: mongodb
         {{- if .Values.networkPolicy.addExternalClientAccess }}
         - podSelector:
-            matchLabels: 
+            matchLabels:
               {{ template "common.names.fullname" . }}-client: "true"
         {{- end }}
         {{- if .Values.networkPolicy.ingressPodMatchLabels }}

@@ -37,7 +37,7 @@ export const ClusterInfoArea = ({ clusterDetails }: I_props) => {
                   justifyContent: "space-between",
                   alignItems: "center",
                   gap:2
-                  
+
                 }}
               >
                 <Typography gutterBottom variant="h6" sx={{mb:"1em"}}>

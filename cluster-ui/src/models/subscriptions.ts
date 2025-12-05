@@ -34,12 +34,12 @@ export interface I_subscriptioncheck {
 }
 
 export interface I_get_subscriptions_response  extends I_api_response{
-  
+
   data:I_subscription[];
 
 
 }
 export interface I_subscription_check_response  extends I_api_response{
-  
+
   data:I_subscriptioncheck;
 }

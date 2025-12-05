@@ -1,10 +1,11 @@
-from datetime import datetime
 import uuid
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
 class Subscription(BaseModel):
-    id: str = Field(default_factory=uuid.uuid4,alias="_id")
+    id: str = Field(default_factory=uuid.uuid4, alias="_id")
     name: str = Field(...)
     pods: int = Field(...)
     service: int = Field(...)
@@ -39,15 +40,15 @@ class Subscription(BaseModel):
     class Config:
         allow_population_by_field_name = True
         schema_extra = {
-            "example":{
+            "example": {
                 "name": "basic",
-                "pods":5,
-                "service":5,
-                "config_map":5,
-                "persistance_vol_claims":5,
-                "replication_ctl":5,
-                "secrets":5,
-                "loadbalancer":5,
-                "node_port":5
+                "pods": 5,
+                "service": 5,
+                "config_map": 5,
+                "persistance_vol_claims": 5,
+                "replication_ctl": 5,
+                "secrets": 5,
+                "loadbalancer": 5,
+                "node_port": 5,
             }
-        }        
+        }

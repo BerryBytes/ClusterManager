@@ -222,13 +222,13 @@ Here is the script to setup the [clusterManager](docs/script/clusterManager_setu
 
 ## 👥 Maintainers
 
-We embrace an open and inclusive community philosophy. Motivated contributors are encouraged to join the [maintainers' team](docs/content/contributing/maintainers.md).  
+We embrace an open and inclusive community philosophy. Motivated contributors are encouraged to join the [maintainers' team](docs/content/contributing/maintainers.md).
 Learn more about pull request reviews and issue triaging in our [contributor guide](docs/content/contributing/contributor-guidelines.md).
 
 ---
-## 👥 Community  
+## 👥 Community
 
-Join our vibrant [Discord community](https://discord.gg/g4a3P9af) to connect with contributors and maintainers. Engage in meaningful discussions, collaborate on ideas, and stay updated on the latest developments!  
+Join our vibrant [Discord community](https://discord.gg/g4a3P9af) to connect with contributors and maintainers. Engage in meaningful discussions, collaborate on ideas, and stay updated on the latest developments!
 
 ---
 
@@ -236,7 +236,7 @@ Let me know if you'd like any further refinements! 😊
 
 ## 🤝 Contributing
 
-Interested in contributing? Refer to our [contributing documentation](CONTRIBUTING.md).  
+Interested in contributing? Refer to our [contributing documentation](CONTRIBUTING.md).
 This project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md), and participation requires compliance with its terms.
 
 ---

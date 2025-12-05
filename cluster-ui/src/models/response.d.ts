@@ -8,6 +8,3 @@ export interface I_api_list_response extends I_api_response {
     page: number;
     size: number;
 }
-
-
-

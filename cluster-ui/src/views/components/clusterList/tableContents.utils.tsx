@@ -22,7 +22,7 @@ const columns: ColumnData[] = [
     label: "SN",
     dataKey: "sn",
   },
-  
+
   {
     width: 200,
     label: "Name",
@@ -51,7 +51,7 @@ const columns: ColumnData[] = [
     dataKey: "status",
     numeric: true,
   },
- 
+
   {
     width: 120,
     label: "Download",
