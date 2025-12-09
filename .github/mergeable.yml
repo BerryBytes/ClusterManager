@@ -25,6 +25,17 @@ mergeable:
         must_include:
           regex: "^(bug|enhancement|documentation|feature|refactor|performance|chore|wip|test|ci|security|dependencies)$"
           message: "PR must include at least one valid label."
+      # Ensure PR has at least one assignee
+
+      - do: assignee
+        min:
+          count: 1
+          message: "PR must have at least one assignee."
+      # Ensure PR has at least one reviewer requested
+      - do: approvals
+        min:
+          count: 1
+          message: "PR must have at least one reviewer requested or approved."
 
     pass:
       - do: labels
