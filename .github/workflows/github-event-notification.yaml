@@ -1,0 +1,178 @@
+name: Notify (GitHub Events)
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+on:
+  issues:
+    types: [opened, edited, reopened, closed, assigned, labeled]
+  pull_request:
+    types: [opened, closed, reopened, ready_for_review, review_requested]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  issue_comment:
+    types: [created, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    name: Send Notifications
+
+    steps:
+      - name: Determine Event Type
+        id: event_info
+        run: |
+          EVENT="${{ github.event_name }}"
+          ACTION="${{ github.event.action }}"
+          REPO="${{ github.repository }}"
+          ACTOR="${{ github.actor }}"
+          REPO_URL="${{ github.server_url }}/${{ github.repository }}"
+
+          if [[ "$EVENT" == "issues" ]]; then
+            TITLE="Issue $ACTION: ${{ github.event.issue.title }}"
+            URL="${{ github.event.issue.html_url }}"
+            NUMBER="${{ github.event.issue.number }}"
+            USER="${{ github.event.issue.user.login }}"
+            DESCRIPTION="Issue #$NUMBER by $USER"
+            STATE="${{ github.event.issue.state }}"
+            EMOJI="🐛"
+
+          elif [[ "$EVENT" == "pull_request" ]]; then
+            NUMBER="${{ github.event.pull_request.number }}"
+            USER="${{ github.event.pull_request.user.login }}"
+            URL="${{ github.event.pull_request.html_url }}"
+            STATE="${{ github.event.pull_request.state }}"
+            SOURCE="${{ github.event.pull_request.head.ref }}"
+            TARGET="${{ github.event.pull_request.base.ref }}"
+
+            if [[ "$ACTION" == "closed" && "${{ github.event.pull_request.merged }}" == "true" ]]; then
+              TITLE="PR merged: ${{ github.event.pull_request.title }}"
+              EMOJI="✅"
+              STATE="merged"
+            elif [[ "$ACTION" == "closed" ]]; then
+              TITLE="PR closed: ${{ github.event.pull_request.title }}"
+              EMOJI="❌"
+            else
+              TITLE="PR $ACTION: ${{ github.event.pull_request.title }}"
+              EMOJI="🔀"
+            fi
+            DESCRIPTION="PR #$NUMBER by $USER: $SOURCE → $TARGET"
+
+          elif [[ "$EVENT" == "pull_request_review" ]]; then
+            TITLE="PR Review: ${{ github.event.pull_request.title }}"
+            URL="${{ github.event.review.html_url }}"
+            NUMBER="${{ github.event.pull_request.number }}"
+            USER="${{ github.event.review.user.login }}"
+            REVIEW_STATE="${{ github.event.review.state }}"
+            STATE="${{ github.event.review.state }}"
+            SOURCE="${{ github.event.pull_request.head.ref }}"
+            TARGET="${{ github.event.pull_request.base.ref }}"
+            DESCRIPTION="Review by $USER on PR #$NUMBER"
+            EMOJI="👀"
+
+          elif [[ "$EVENT" == "issue_comment" ]]; then
+            NUMBER="${{ github.event.issue.number }}"
+            USER="${{ github.event.comment.user.login }}"
+            URL="${{ github.event.comment.html_url }}"
+            STATE="commented"
+
+            if [[ "${{ github.event.issue.pull_request }}" != "" ]]; then
+              TITLE="Comment on PR: ${{ github.event.issue.title }}"
+              EMOJI="💬"
+            else
+              TITLE="Comment on Issue: ${{ github.event.issue.title }}"
+              EMOJI="💬"
+            fi
+            DESCRIPTION="Comment by $USER on #$NUMBER"
+
+          elif [[ "$EVENT" == "pull_request_review_comment" ]]; then
+            TITLE="Comment on PR: ${{ github.event.pull_request.title }}"
+            URL="${{ github.event.comment.html_url }}"
+            NUMBER="${{ github.event.pull_request.number }}"
+            USER="${{ github.event.comment.user.login }}"
+            STATE="commented"
+            SOURCE="${{ github.event.pull_request.head.ref }}"
+            TARGET="${{ github.event.pull_request.base.ref }}"
+            DESCRIPTION="Review comment by $USER on PR #$NUMBER"
+            EMOJI="💬"
+          else
+            TITLE="GitHub Event: $EVENT"
+            URL="${{ github.event.repository.html_url }}"
+            DESCRIPTION="Event triggered in $REPO"
+            STATE="N/A"
+            NUMBER="N/A"
+            USER="$ACTOR"
+            EMOJI="📢"
+          fi
+
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+          echo "url=$URL" >> $GITHUB_OUTPUT
+          echo "description=$DESCRIPTION" >> $GITHUB_OUTPUT
+          echo "emoji=$EMOJI" >> $GITHUB_OUTPUT
+          echo "number=${NUMBER:-N/A}" >> $GITHUB_OUTPUT
+          echo "user=${USER:-$ACTOR}" >> $GITHUB_OUTPUT
+          echo "state=${STATE:-N/A}" >> $GITHUB_OUTPUT
+          echo "source=${SOURCE:-N/A}" >> $GITHUB_OUTPUT
+          echo "target=${TARGET:-N/A}" >> $GITHUB_OUTPUT
+          echo "repo_url=$REPO_URL" >> $GITHUB_OUTPUT
+
+      - name: Google Chat Notification
+        if: always()
+        uses: Co-qn/google-chat-notification@releases/v1
+        with:
+          name: ${{ steps.event_info.outputs.title }}
+          url: ${{ secrets.GOOGLE_CHAT_WEBHOOK }}
+          status: ${{ job.status }}
+
+      - name: Slack Notification
+        if: always()
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ID }}
+          payload: |
+            {
+              "text": "${{ steps.event_info.outputs.title }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "${{ steps.event_info.outputs.emoji }} ${{ steps.event_info.outputs.title }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Repository:*\n<${{ steps.event_info.outputs.repo_url }}|${{ github.repository }}>" },
+                    { "type": "mrkdwn", "text": "*Event:*\n${{ github.event_name }}" },
+                    { "type": "mrkdwn", "text": "*Author:*\n${{ steps.event_info.outputs.user }}" },
+                    { "type": "mrkdwn", "text": "*Action:*\n${{ github.event.action }}" },
+                    { "type": "mrkdwn", "text": "*Number:*\n<${{ steps.event_info.outputs.url }}|#${{ steps.event_info.outputs.number }}>" },
+                    { "type": "mrkdwn", "text": "*State:*\n${{ steps.event_info.outputs.state }}" }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": { "type": "mrkdwn", "text": "${{ steps.event_info.outputs.description }}" }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    { "type": "button", "text": { "type": "plain_text", "text": "View on GitHub" }, "url": "${{ steps.event_info.outputs.url }}", "style": "primary" },
+                    { "type": "button", "text": { "type": "plain_text", "text": "View Repository" }, "url": "${{ steps.event_info.outputs.repo_url }}" }
+                  ]
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    { "type": "mrkdwn", "text": "Triggered by ${{ github.actor }} • ${{ github.event_name }} event" }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
