@@ -1,5 +1,5 @@
 # Stage 1: Build the application
-FROM golang:1.19 AS builder
+FROM golang:1.23 AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
