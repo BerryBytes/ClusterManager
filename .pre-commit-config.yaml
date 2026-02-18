@@ -76,9 +76,10 @@ repos:
       - id: stylelint
         files: \.(css|scss)$
         # exclude: "node_modules/"
+        types: [file, css]
         additional_dependencies:
-          - stylelint
-          - stylelint-config-standard
+          - stylelint@15.10.3
+          - stylelint-config-standard@34.0.0
         args: ['--config', '.stylelintrc.json', '--fix']
 
 #    # Codespell
